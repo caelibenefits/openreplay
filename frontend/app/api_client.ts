@@ -268,7 +268,9 @@ export default class APIClient {
         path.includes('refresh') ||
         path.includes('logout') ||
         path.includes('reset')) &&
-      ENV.NODE_ENV !== 'development'
+      // Caeli: OpenReplay Cloud keeps the refresh token in a cookie; a dev
+      // build pointed at it needs the cookie too, or the session never renews.
+      (ENV.NODE_ENV !== 'development' || endpoints().isSaas)
     ) {
       init.credentials = 'include';
     } else {

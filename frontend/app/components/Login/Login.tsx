@@ -6,6 +6,7 @@ import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'react-toastify';
 
+import ENV from 'ENV';
 import { useStore } from 'App/mstore';
 import { forgotPassword, signup } from 'App/routes';
 import { useHistory, useLocation } from 'App/routing';
@@ -70,7 +71,10 @@ function Login({
   }, []);
 
   useEffect(() => {
-    if (authDetails && !authDetails.tenants) {
+    // Caeli: OpenReplay Cloud answers /signup with tenants: null; that means
+    // "this is the SaaS", not "no account yet", so never send to signup there.
+    const onSaas = (() => { try { return new URL(ENV.API_EDP || '').hostname === 'api.openreplay.com'; } catch { return false; } })();
+    if (authDetails && !authDetails.tenants && !onSaas) {
       history.push(SIGNUP_ROUTE);
     }
   }, [authDetails]);

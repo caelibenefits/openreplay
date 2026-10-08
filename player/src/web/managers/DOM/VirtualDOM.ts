@@ -1,5 +1,6 @@
 import { isIFrameElement, isRootNode } from '../../../guards';
 import { insertRule, deleteRule, replaceRule } from './safeCSSRules';
+import { rewriteAssetUrls } from './assetRewrite';
 
 function isNode(sth: any): sth is Node {
   return !!sth && sth.nodeType != null;
@@ -207,7 +208,7 @@ export class VElement extends VParent<Element> {
   }
 
   setAttribute(name: string, value: string) {
-    this.newAttributes.set(name, value);
+    this.newAttributes.set(name, rewriteAssetUrls(value));
   }
 
   applyStyleChanges(styles: [prop: string, value: string][]) {

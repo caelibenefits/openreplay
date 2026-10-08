@@ -296,6 +296,13 @@ export default defineConfig(({ mode }) => {
       // third-party and never sends it, so /refresh 403s and the session ends
       // at the first token expiry. Through this proxy it is a localhost cookie.
       proxy: {
+        // Recordings' asset copies (assets.openreplay.com allows only
+        // app.openreplay.com; fonts from it fail CORS elsewhere).
+        '/or-assets': {
+          target: 'https://assets.openreplay.com',
+          changeOrigin: true,
+          rewrite: (p: string) => p.replace(/^\/or-assets/, ''),
+        },
         '/or-api': {
           target: 'https://api.openreplay.com',
           changeOrigin: true,

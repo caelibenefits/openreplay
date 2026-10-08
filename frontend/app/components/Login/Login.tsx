@@ -73,7 +73,7 @@ function Login({
   useEffect(() => {
     // Caeli: OpenReplay Cloud answers /signup with tenants: null; that means
     // "this is the SaaS", not "no account yet", so never send to signup there.
-    const onSaas = (() => { try { return new URL(ENV.API_EDP || '').hostname === 'api.openreplay.com'; } catch { return false; } })();
+    const onSaas = (() => { try { return /^(api\.openreplay\.com)$/.test(new URL(ENV.API_EDP || '').hostname) || new URL(ENV.API_EDP || '').pathname.replace(/\/$/, '') === '/or-api'; } catch { return false; } })();
     if (authDetails && !authDetails.tenants && !onSaas) {
       history.push(SIGNUP_ROUTE);
     }

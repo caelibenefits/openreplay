@@ -28,7 +28,7 @@ export const hasAi = false;
 // widget is for self-hosted installs.
 const onOpenReplayCloud = (() => {
   try {
-    return new URL(ENV.API_EDP || '').hostname === 'api.openreplay.com';
+    return /^(api\.openreplay\.com)$/.test(new URL(ENV.API_EDP || '').hostname) || new URL(ENV.API_EDP || '').pathname.replace(/\/$/, '') === '/or-api';
   } catch {
     return false;
   }

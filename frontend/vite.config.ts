@@ -291,6 +291,19 @@ export default defineConfig(({ mode }) => {
       fs: {
         allow: [path.resolve(__dirname), PLAYER_DIR],
       },
+      // Caeli: OpenReplay Cloud's API, same-origin. The refresh token is a
+      // cookie; from localhost to api.openreplay.com the browser treats it as
+      // third-party and never sends it, so /refresh 403s and the session ends
+      // at the first token expiry. Through this proxy it is a localhost cookie.
+      proxy: {
+        '/or-api': {
+          target: 'https://api.openreplay.com',
+          changeOrigin: true,
+          rewrite: (p: string) => p.replace(/^\/or-api/, ''),
+          cookieDomainRewrite: '',
+          cookiePathRewrite: { '*': '/' },
+        },
+      },
     },
     optimizeDeps: {
       exclude: ['@openreplay/player'],

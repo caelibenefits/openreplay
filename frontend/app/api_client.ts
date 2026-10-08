@@ -67,9 +67,16 @@ const EXCEPT_RE = new RegExp(except.map(escapeRe).join('|'));
 const AGENT_NOTIFICATIONS_RE = /^\/\d+\/notifications(\/|$)/;
 
 const SAAS_HOST = 'api.openreplay.com';
+// Caeli: the dev server's same-origin proxy to the Cloud API (vite.config.ts).
+const SAAS_PROXY_PATH = '/or-api';
 
-function toV2(url: string, isSaas: boolean): string {
+function toV2(url: string, isSaas: boolean, base?: string): string {
   if (isSaas) {
+    // `/v2` goes right after the API base, before the path:
+    // https://api.openreplay.com/18416/x -> https://api.openreplay.com/v2/18416/x,
+    // and the same for the dev proxy (http://localhost:3333/or-api/...).
+    const b = (base ?? '').replace(/\/$/, '');
+    if (b && url.startsWith(b)) return `${b}/v2${url.slice(b.length)}`;
     return url.replace('.com', '.com/v2');
   }
   try {
@@ -96,14 +103,15 @@ function endpoints(): Endpoints {
   if (endpointCache?.base !== base) {
     let isSaas = false;
     try {
-      isSaas = new URL(base).hostname === SAAS_HOST;
+      const u = new URL(base, window.location.origin);
+      isSaas = u.hostname === SAAS_HOST || u.pathname.replace(/\/$/, '') === SAAS_PROXY_PATH;
     } catch {
       isSaas = false;
     }
     endpointCache = {
       base,
       isSaas,
-      v2: toV2(base, isSaas),
+      v2: toV2(base, isSaas, base),
       noChalice: isSaas ? base : base.replace('/api', ''),
     };
   }
@@ -325,7 +333,7 @@ export default class APIClient {
         ((NEW_API_RE.test(_path) && !EXCEPT_RE.test(_path)) ||
           AGENT_NOTIFICATIONS_RE.test(_path))
       ) {
-        fullUrl = toV2(fullUrl, isSaas);
+        fullUrl = toV2(fullUrl, isSaas, base);
       }
     }
     const response = await window.fetch(fullUrl, init);

@@ -344,7 +344,9 @@ export class VText extends VNode<Text> {
   private changed: boolean = false;
 
   setData(data: string) {
-    this.data = data;
+    // Caeli: text nodes include <style> contents (SetCssData), whose url()s
+    // point at the asset host (assetRewrite.ts).
+    this.data = rewriteAssetUrls(data);
     this.changed = true;
   }
 

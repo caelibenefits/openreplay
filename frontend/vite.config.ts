@@ -302,6 +302,13 @@ export default defineConfig(({ mode }) => {
           target: 'https://assets.openreplay.com',
           changeOrigin: true,
           rewrite: (p: string) => p.replace(/^\/or-assets/, ''),
+          // The replay runs in a sandboxed (null-origin) frame, so its font
+          // loads are cross-origin even here; the host allows only its own app.
+          configure: (proxy: any) => {
+            proxy.on('proxyRes', (res: any) => {
+              res.headers['access-control-allow-origin'] = '*';
+            });
+          },
         },
         '/or-api': {
           target: 'https://api.openreplay.com',

@@ -1,3 +1,4 @@
+import ENV from 'ENV';
 /**
  * can be overwritten in saas or ee editions
  * */
@@ -23,7 +24,16 @@ export const anyAgentEnabled = (): boolean =>
   agentIssuesEnabled() || agentTestsEnabled();
 
 export const hasAi = false;
-export const hasHealth = true;
+// Caeli: OpenReplay Cloud has no /healthz (it 404s on every page); the
+// widget is for self-hosted installs.
+const onOpenReplayCloud = (() => {
+  try {
+    return new URL(ENV.API_EDP || '').hostname === 'api.openreplay.com';
+  } catch {
+    return false;
+  }
+})();
+export const hasHealth = !onOpenReplayCloud;
 export const hasSampling = true;
 
 export const menuHidden = {

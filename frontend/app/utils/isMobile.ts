@@ -1,7 +1,7 @@
 function isMobile() {
-  if (document.location.hostname.includes('localhost')) {
-    return window.innerWidth < 1280; // For local development, assume mobile if width is less than 1280px
-  }
+  // Caeli: upstream treated ANY localhost window under 1280px as a phone (a
+  // dev shortcut), which hides the player's whole control bar. We run the
+  // dashboard on localhost for real, so detect the device like production.
   if (
     (navigator as any).userAgentData &&
     typeof (navigator as any).userAgentData.mobile === 'boolean'

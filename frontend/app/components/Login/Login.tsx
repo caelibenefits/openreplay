@@ -18,10 +18,21 @@ import Copyright from 'Shared/Copyright';
 
 import LanguageSwitcher from '../LanguageSwitcher';
 import SSOLogin from './SSOLogin';
+import CloudAuthorizeLogin from './CloudAuthorizeLogin';
 
 const companyLogo = new URL('../../assets/logo.svg', import.meta.url);
 
 const FORGOT_PASSWORD = forgotPassword();
+// Caeli: true when the API is OpenReplay Cloud (direct or via our /or-api proxy).
+const onOpenReplayCloud = () => {
+  try {
+    const u = new URL(ENV.API_EDP || '', window.location.origin);
+    return u.hostname === 'api.openreplay.com' || u.pathname.replace(/\/$/, '') === '/or-api';
+  } catch {
+    return false;
+  }
+};
+
 const SIGNUP_ROUTE = signup();
 
 function Login({
@@ -73,7 +84,7 @@ function Login({
   useEffect(() => {
     // Caeli: OpenReplay Cloud answers /signup with tenants: null; that means
     // "this is the SaaS", not "no account yet", so never send to signup there.
-    const onSaas = (() => { try { return /^(api\.openreplay\.com)$/.test(new URL(ENV.API_EDP || '').hostname) || new URL(ENV.API_EDP || '').pathname.replace(/\/$/, '') === '/or-api'; } catch { return false; } })();
+    const onSaas = (() => { try { return /^(api\.openreplay\.com)$/.test(new URL(ENV.API_EDP || '', window.location.origin).hostname) || new URL(ENV.API_EDP || '', window.location.origin).pathname.replace(/\/$/, '') === '/or-api'; } catch { return false; } })();
     if (authDetails && !authDetails.tenants && !onSaas) {
       history.push(SIGNUP_ROUTE);
     }
@@ -174,6 +185,17 @@ function Login({
           <h2 className="text-center text-2xl font-medium mb-6 border-b p-5 w-full">
             {t('Login to your account')}
           </h2>
+          {onOpenReplayCloud() ? (
+            // Caeli: on OpenReplay Cloud the only login is its app-authorization
+            // flow. A password login here cannot pass the Cloud's captcha, which
+            // is bound to OpenReplay's own domains.
+            <div className="px-8 pb-8" style={{ width: '350px' }}>
+              <CloudAuthorizeLogin onJwt={(jwt) => setJwt({ jwt })} />
+              <p className="mt-3 text-center text-sm color-gray-medium">
+                {t('You approve on app.openreplay.com; this site never sees your password.')}
+              </p>
+            </div>
+          ) : (
           <div className={cn(authDetails?.enforceSSO ? 'hidden!' : '')}>
             <Form
               onFinish={onSubmit}
@@ -257,8 +279,9 @@ function Login({
 
             <SSOLogin authDetails={authDetails} />
           </div>
+          )}
 
-          {authDetails?.enforceSSO && (
+          {!onOpenReplayCloud() && authDetails?.enforceSSO && (
             <SSOLogin authDetails={authDetails} enforceSSO={true} />
           )}
         </div>

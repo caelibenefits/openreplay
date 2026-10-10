@@ -2,9 +2,9 @@ package geoip
 
 import (
 	"errors"
-	"github.com/tomasen/realip"
 	"net"
 	"net/http"
+	"openreplay/backend/internal/http/clientip"
 	"openreplay/backend/pkg/logger"
 	"strings"
 
@@ -92,7 +92,7 @@ func (geoIP *geoParser) Parse(ip net.IP) (*GeoRecord, error) {
 }
 
 func (geoIP *geoParser) ExtractGeoData(r *http.Request) *GeoRecord {
-	ip := net.ParseIP(realip.FromRequest(r))
+	ip := net.ParseIP(clientip.FromRequest(r))
 	geoRec, err := geoIP.Parse(ip)
 	if err != nil {
 		geoIP.log.Warn(r.Context(), "failed to parse geo data: %v", err)

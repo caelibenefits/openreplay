@@ -3,6 +3,7 @@ package charts
 import (
 	"openreplay/backend/pkg/analytics/model"
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -321,5 +322,34 @@ func TestGetColumnAccessor(t *testing.T) {
 				t.Errorf("getColumnAccessor() nature = %v, want %v", gotNature, tt.wantNature)
 			}
 		})
+	}
+}
+
+// caeli: the session list's "Internal hidden" toggle excludes sessions by the
+// "ip" metadata. Sessions recorded before the key existed have it NULL, and
+// they are not internal traffic, so a negative filter must keep them.
+func TestAddFilter_NegativeMetadataKeepsMissingValues(t *testing.T) {
+	for _, op := range []string{"isNot", "notContains", "notStartsWith"} {
+		f := model.Filter{Name: "metadata_7", Operator: op, Value: []string{"67.160.35.32"}, AutoCaptured: true}
+		conds, _ := addFilter(f, BuildConditionsOptions{}, false)
+		if len(conds) != 1 || !strings.HasPrefix(conds[0], "(isNull(metadata_7) OR ") {
+			t.Fatalf("%s: got %q, want an isNull(metadata_7) OR … guard", op, conds)
+		}
+	}
+	// A positive filter must still require the value.
+	pos, _ := addFilter(model.Filter{Name: "metadata_7", Operator: "is", Value: []string{"67.160.35.32"}, AutoCaptured: true}, BuildConditionsOptions{}, false)
+	if len(pos) != 1 || strings.Contains(pos[0], "isNull") {
+		t.Fatalf("is: got %q, want no isNull guard", pos)
+	}
+}
+
+func TestBuildCond_NotStartsWith(t *testing.T) {
+	got := buildCond("metadata_7", []string{"66.249."}, "notStartsWith", false, "singleColumn")
+	if !strings.HasPrefix(got, "NOT (") || !strings.Contains(got, "66.249.%") || !strings.Contains(got, "ILIKE") {
+		t.Fatalf("got %q, want NOT (metadata_7 ILIKE '66.249.%%')", got)
+	}
+	// Not a substring match: 166.249.x.x must not be excluded by a 66.249. prefix.
+	if strings.Contains(got, "%66.249.") {
+		t.Fatalf("got %q: a leading %% would make it a substring match", got)
 	}
 }

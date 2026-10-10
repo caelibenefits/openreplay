@@ -290,6 +290,13 @@ func addFilter(f model.Filter, opts BuildConditionsOptions, isEventProperty bool
 	if IsMetadataColumn(f.Name) {
 		cond := buildCond(f.Name, f.Value, f.Operator, false, "singleColumn")
 		if cond != "" {
+			// caeli: metadata columns are Nullable, and NOT (NULL ...) is NULL,
+			// so "ip is not X" dropped every session with no ip at all (all of
+			// them before the key existed). A session without the value is not
+			// one of the excluded values.
+			if isNegativeOperator(f.Operator) {
+				cond = fmt.Sprintf("(isNull(%s) OR %s)", f.Name, cond)
+			}
 			return []string{cond}, ""
 		}
 	}
@@ -377,6 +384,12 @@ func buildCond(expr string, values []string, operator string, isNumeric bool, na
 			wrapped[i] = sqlLikePatternReplacer.Replace(v) + "%"
 		}
 		return multiValCond(expr, wrapped, "%s ILIKE %s", false)
+	case "notStartsWith": // caeli: the internal-traffic filter's CIDR prefixes
+		wrapped := make([]string, len(values))
+		for i, v := range values {
+			wrapped[i] = sqlLikePatternReplacer.Replace(v) + "%"
+		}
+		return "NOT (" + multiValCond(expr, wrapped, "%s ILIKE %s", false) + ")"
 	case "endsWith":
 		wrapped := make([]string, len(values))
 		for i, v := range values {
@@ -531,7 +544,7 @@ func getStepSize(startTimestamp uint64, endTimestamp uint64, density int, factor
 }
 
 func isNegativeOperator(op string) bool {
-	return op == "isNot" || op == "not" || op == "notIn" || op == "notContains"
+	return op == "isNot" || op == "not" || op == "notIn" || op == "notContains" || op == "notStartsWith"
 }
 func isNegativeEventFilter(f model.Filter) bool {
 	// a negative event filter is one that has negative operators for all its properties

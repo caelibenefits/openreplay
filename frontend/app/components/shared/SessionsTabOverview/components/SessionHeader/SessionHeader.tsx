@@ -7,6 +7,7 @@ import { Button, Tooltip } from 'antd';
 import { SyncOutlined } from '@ant-design/icons';
 import SessionSort from '../SessionSort';
 import { SortDropdown } from '../SessionSort/SessionSort';
+import { MIN_EVENTS_OPTIONS } from 'App/mstore/searchStore';
 import SessionTags from '../SessionTags';
 
 function SessionHeader() {
@@ -68,6 +69,17 @@ function SessionHeader() {
                 { key: 'show', label: 'Show internal' },
               ]}
               onSort={({ key }: { key: string }) => searchStore.setHideInternal(key === 'hide')}
+            />
+          </div>
+          <div className="px-[7px]">
+            <SortDropdown
+              defaultOption={String(searchStore.minEvents)}
+              current={searchStore.minEvents ? `Events > ${searchStore.minEvents}` : 'Any events'}
+              sortOptions={MIN_EVENTS_OPTIONS.map((n) => ({
+                key: String(n),
+                label: n ? `More than ${n} event${n === 1 ? '' : 's'}` : 'Any number of events',
+              }))}
+              onSort={({ key }: { key: string }) => searchStore.setMinEvents(Number(key))}
             />
           </div>
           <Tooltip title="Refresh">

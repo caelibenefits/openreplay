@@ -72,7 +72,12 @@ import {
   settingsStore,
 } from 'App/mstore';
 import { checkFilterValue } from 'App/mstore/types/filter';
-import { excludeInternalFilters, ipColumn } from 'App/utils/caeliInternalTraffic';
+import {
+  excludeInternalFilters,
+  excludeTaggedBotsFilter,
+  ipColumn,
+  metadataColumn,
+} from 'App/utils/caeliInternalTraffic';
 import FilterItem from 'App/mstore/types/filterItem';
 import SavedSearch, { ISavedSearch } from 'App/mstore/types/savedSearch';
 import Search from 'App/mstore/types/search';
@@ -872,6 +877,12 @@ class SearchStore {
 
   private applyBotFilter(filter: any): any {
     if (!this.hideBots) return filter;
+    // Sessions www tagged as automated (bot = webdriver | ua). Until the
+    // catalog has the key there is nothing to filter on.
+    const botCol = metadataColumn(filterStore.getCurrentProjectFilters(), 'bot');
+    if (botCol && !filter.filters.some((f: any) => f.name === botCol)) {
+      filter = { ...filter, filters: [...filter.filters, excludeTaggedBotsFilter(botCol)] };
+    }
     // A search that already filters on the browser is the user's own call.
     if (filter.filters.some((f: any) => f.name === FilterKey.USER_BROWSER)) {
       return filter;

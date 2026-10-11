@@ -76,8 +76,32 @@ export function excludeInternalFilters(column: string, entries: readonly string[
   ];
 }
 
-/** The metadata column the project declared "ip" in, from the filter catalog. */
-export function ipColumn(catalog: { name: string; displayName?: string }[]): string | null {
-  const f = catalog.find((c) => c.displayName === 'ip' && /^metadata_(?:[1-9]|10)$/.test(c.name));
+/** The metadata column the project declared `key` in, from the filter catalog. */
+export function metadataColumn(catalog: { name: string; displayName?: string }[], key: string): string | null {
+  const f = catalog.find((c) => c.displayName === key && /^metadata_(?:[1-9]|10)$/.test(c.name));
   return f ? f.name : null;
+}
+
+/** The metadata column the project declared "ip" in. */
+export function ipColumn(catalog: { name: string; displayName?: string }[]): string | null {
+  return metadataColumn(catalog, 'ip');
+}
+
+/**
+ * Leaves out sessions www tagged as automated: its `bot` metadata is
+ * "webdriver" or "ua" for a crawler (www lib/openreplay.ts crawlerSignal), and
+ * unset for a visitor. isUndefined matches NULL or empty, so every session
+ * without the tag, including all recorded before it existed, stays.
+ */
+export function excludeTaggedBotsFilter(column: string): any {
+  return {
+    name: column,
+    operator: 'isUndefined',
+    value: [],
+    dataType: 'string',
+    isEvent: false,
+    autoCaptured: true,
+    propertyOrder: 'and',
+    filters: [],
+  };
 }

@@ -1,5 +1,12 @@
 import { describe, expect, it } from '@jest/globals';
-import { excludeInternalFilters, INTERNAL_IPS, ipColumn, ipMatchers } from './caeliInternalTraffic';
+import {
+  excludeInternalFilters,
+  excludeTaggedBotsFilter,
+  INTERNAL_IPS,
+  ipColumn,
+  ipMatchers,
+  metadataColumn,
+} from './caeliInternalTraffic';
 
 describe('ipMatchers', () => {
   it('keeps single addresses whole and turns octet-aligned CIDRs into prefixes', () => {
@@ -45,5 +52,18 @@ describe('ipColumn', () => {
   it('is null until the catalog has it', () => {
     expect(ipColumn([])).toBeNull();
     expect(ipColumn([{ name: 'ip', displayName: 'ip' }])).toBeNull();
+  });
+});
+
+describe('excludeTaggedBotsFilter', () => {
+  it('keeps only sessions with no bot tag, on the column the project declared it in', () => {
+    const column = metadataColumn([{ name: 'metadata_8', displayName: 'bot' }], 'bot');
+    expect(column).toBe('metadata_8');
+    expect(excludeTaggedBotsFilter(column!)).toMatchObject({
+      name: 'metadata_8',
+      operator: 'isUndefined',
+      isEvent: false,
+      autoCaptured: true,
+    });
   });
 });

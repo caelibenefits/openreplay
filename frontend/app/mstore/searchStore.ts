@@ -49,6 +49,14 @@ export const BOT_BROWSERS = [
 
 const MAX_FILTER_VALUES = 10;
 const HIDE_BOTS_KEY = 'caeli_hide_bots';
+const HIDE_INTERNAL_KEY = 'caeli_hide_internal';
+function readHideInternal(): boolean {
+  try {
+    return localStorage.getItem(HIDE_INTERNAL_KEY) !== '0';
+  } catch {
+    return true;
+  }
+}
 function readHideBots(): boolean {
   try {
     return localStorage.getItem(HIDE_BOTS_KEY) !== '0';
@@ -64,6 +72,7 @@ import {
   settingsStore,
 } from 'App/mstore';
 import { checkFilterValue } from 'App/mstore/types/filter';
+import { excludeInternalFilters, ipColumn } from 'App/utils/caeliInternalTraffic';
 import FilterItem from 'App/mstore/types/filterItem';
 import SavedSearch, { ISavedSearch } from 'App/mstore/types/savedSearch';
 import Search from 'App/mstore/types/search';
@@ -178,6 +187,11 @@ class SearchStore {
   // Applebot, …) are recorded and billed like visitors. Hidden by default,
   // per browser; the toggle in SessionHeader shows them.
   hideBots: boolean = readHideBots();
+
+  // Caeli: our own traffic (e2e, canaries, the office), by the session's "ip"
+  // against slack-app's INTERNAL_TEST_IPS (utils/caeliInternalTraffic.ts).
+  // Hidden by default, per browser; the toggle in SessionHeader shows it.
+  hideInternal: boolean = readHideInternal();
   urlParsed: boolean = false;
   searchInProgress = false;
 
@@ -591,6 +605,7 @@ class SearchStore {
       filter = this.applyTagFilter(filter, this.activeTags);
       filter = this.applyDurationFilter(filter);
       filter = this.applyBotFilter(filter);
+    filter = this.applyInternalFilter(filter);
 
       // Set time filter if we have the latest request time
       if (this.latestRequestTime) {
@@ -769,6 +784,7 @@ class SearchStore {
     filter = this.applyTagFilter(filter, this.activeTags);
     filter = this.applyDurationFilter(filter);
     filter = this.applyBotFilter(filter);
+    filter = this.applyInternalFilter(filter);
     this.latestRequestTime = filter.startDate;
     this.latestList = [];
     this.searchInProgress = true;
@@ -831,6 +847,28 @@ class SearchStore {
     this.updateLatestSessionCount(0);
     void this.fetchSessions(true);
   };
+
+  setHideInternal = (hide: boolean) => {
+    this.hideInternal = hide;
+    try {
+      localStorage.setItem(HIDE_INTERNAL_KEY, hide ? '1' : '0');
+    } catch {
+      /* not persisted */
+    }
+    this.updateLatestSessionCount(0);
+    void this.fetchSessions(true);
+  };
+
+  private applyInternalFilter(filter: any): any {
+    if (!this.hideInternal) return filter;
+    // Until the catalog names the "ip" column there is nothing to filter on;
+    // showing everything beats guessing a slot.
+    const column = ipColumn(filterStore.getCurrentProjectFilters());
+    if (!column) return filter;
+    // A search that already filters on ip is the user's own call.
+    if (filter.filters.some((f: any) => f.name === column)) return filter;
+    return { ...filter, filters: [...filter.filters, ...excludeInternalFilters(column)] };
+  }
 
   private applyBotFilter(filter: any): any {
     if (!this.hideBots) return filter;

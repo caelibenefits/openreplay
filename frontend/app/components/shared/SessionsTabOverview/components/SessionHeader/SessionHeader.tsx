@@ -59,6 +59,17 @@ function SessionHeader() {
               onSort={({ key }: { key: string }) => searchStore.setHideBots(key === 'hide')}
             />
           </div>
+          <div className="px-[7px]">
+            <SortDropdown
+              defaultOption={searchStore.hideInternal ? 'hide' : 'show'}
+              current={searchStore.hideInternal ? 'Internal hidden' : 'Internal shown'}
+              sortOptions={[
+                { key: 'hide', label: 'Hide internal (our IPs: office, e2e, canaries)' },
+                { key: 'show', label: 'Show internal' },
+              ]}
+              onSort={({ key }: { key: string }) => searchStore.setHideInternal(key === 'hide')}
+            />
+          </div>
           <Tooltip title="Refresh">
             <Button
               type="text"

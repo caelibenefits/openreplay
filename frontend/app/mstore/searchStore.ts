@@ -606,6 +606,7 @@ class SearchStore {
 
   async checkForLatestSessionCount(): Promise<void> {
     try {
+      await this.ensureFilterCatalog();
       let filter = this.instance.toSearch();
       filter = this.applyTagFilter(filter, this.activeTags);
       filter = this.applyDurationFilter(filter);
@@ -785,6 +786,8 @@ class SearchStore {
     const controller = new AbortController();
     this.searchAbort = controller;
 
+    await this.ensureFilterCatalog();
+    if (controller.signal.aborted) return;
     let filter = this.instance.toSearch();
     filter = this.applyTagFilter(filter, this.activeTags);
     filter = this.applyDurationFilter(filter);
@@ -863,6 +866,23 @@ class SearchStore {
     this.updateLatestSessionCount(0);
     void this.fetchSessions(true);
   };
+
+  /**
+   * Caeli: the Internal and Bots toggles find their columns (ip, bot) in the
+   * filter catalog. A fresh page load searched before the catalog arrived, so
+   * the first list ignored both toggles until a manual refresh (Tingyi,
+   * 2026-10-11). Cached after the first load; a failure filters without it.
+   */
+  private async ensureFilterCatalog(): Promise<void> {
+    if (!this.hideBots && !this.hideInternal) return;
+    const siteId = projectStore.activeSiteId;
+    if (!siteId) return;
+    try {
+      await filterStore.fetchFilters(String(siteId));
+    } catch {
+      /* the toggles fall back to filtering without the catalog's columns */
+    }
+  }
 
   private applyInternalFilter(filter: any): any {
     if (!this.hideInternal) return filter;

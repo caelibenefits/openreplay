@@ -353,3 +353,23 @@ func TestBuildCond_NotStartsWith(t *testing.T) {
 		t.Fatalf("got %q: a leading %% would make it a substring match", got)
 	}
 }
+
+// caeli: "events > x" filters the sessions table's events_count, like
+// duration; it used to compile to a lookup in the events' properties.
+func TestBuildWhere_EventsCountIsASessionsColumn(t *testing.T) {
+	for _, name := range []string{"eventsCount", "events_count"} {
+		f := model.Filter{Name: name, Operator: ">", Value: []string{"1"}, DataType: "number", AutoCaptured: true}
+		_, flt, _, sess := BuildWhere([]model.Filter{f}, "then", "e", "s")
+		if len(flt) != 0 {
+			t.Fatalf("%s: still compiled as an event property: %q", name, flt)
+		}
+		if len(sess) != 1 || sess[0] != "s.events_count > 1" {
+			t.Fatalf("%s: got %q, want [s.events_count > 1]", name, sess)
+		}
+	}
+	// Garbage never reaches SQL.
+	bad := model.Filter{Name: "eventsCount", Operator: ">", Value: []string{"1; DROP"}, AutoCaptured: true}
+	if _, _, _, sess := BuildWhere([]model.Filter{bad}, "then", "e", "s"); len(sess) != 0 {
+		t.Fatalf("non-numeric value produced %q", sess)
+	}
+}

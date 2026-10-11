@@ -209,7 +209,7 @@ func BuildEventConditions(filters []model.Filter, option BuildConditionsOptions)
 		if f.AutoCaptured && !f.IsEvent {
 			f.Name = CamelToSnake(f.Name)
 		}
-		if f.Name == string(FilterDuration) {
+		if f.Name == string(FilterDuration) || isEventsCountFilter(f) {
 			continue
 		}
 		conds, nameCondition := addFilter(f, opts, f.IsEvent)
@@ -705,7 +705,11 @@ func BuildDurationWhere(filters []model.Filter, tableAlias ...string) ([]string,
 	var conds []string
 	var rest []model.Filter
 	for _, f := range filters {
-		if string(f.Name) == "duration" && f.AutoCaptured {
+		if isEventsCountFilter(f) {
+			if c := eventsCountCond(alias, f); c != "" {
+				conds = append(conds, c)
+			}
+		} else if string(f.Name) == "duration" && f.AutoCaptured {
 			v := f.Value
 			if len(v) == 1 {
 				if v[0] != "" {
@@ -730,6 +734,30 @@ func BuildDurationWhere(filters []model.Filter, tableAlias ...string) ([]string,
 		}
 	}
 	return conds, rest
+}
+
+// caeli: a session's event count is a column on the sessions table, like
+// duration. Through the generic path it became a lookup in the EVENTS'
+// properties (JSONExtractFloat(e."$properties", 'events_count')), which no
+// event has, so the filter matched nothing.
+func isEventsCountFilter(f model.Filter) bool {
+	return !f.IsEvent && (f.Name == "eventsCount" || f.Name == "events_count")
+}
+
+func eventsCountCond(alias string, f model.Filter) string {
+	op, ok := map[string]string{
+		">": ">", ">=": ">=", "<": "<", "<=": "<=", "=": "=", "is": "=",
+		"greaterThan": ">", "gt": ">", "greaterThanOrEqual": ">=", "gte": ">=",
+		"lessThan": "<", "lt": "<", "lessThanOrEqual": "<=", "lte": "<=",
+	}[f.Operator]
+	if !ok || len(f.Value) == 0 {
+		return ""
+	}
+	n, err := strconv.ParseUint(strings.TrimSpace(f.Value[0]), 10, 32)
+	if err != nil {
+		return ""
+	}
+	return fmt.Sprintf("%s.events_count %s %d", alias, op, n)
 }
 
 // buildLocationConditions extracts the url_path properties of LOCATION filters

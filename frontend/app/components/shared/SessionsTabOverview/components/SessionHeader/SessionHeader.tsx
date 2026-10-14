@@ -8,7 +8,6 @@ import { SyncOutlined } from '@ant-design/icons';
 import SessionSort from '../SessionSort';
 import { SortDropdown } from '../SessionSort/SessionSort';
 import { MIN_EVENTS_OPTIONS } from 'App/mstore/searchStore';
-import SessionTags from '../SessionTags';
 
 function SessionHeader() {
   const { searchStore } = useStore();
@@ -39,8 +38,9 @@ function SessionHeader() {
       className="flex items-center px-4 py-3 justify-between w-full"
       data-test-id="session-list-header"
     >
-      <div className={`flex w-full flex-wrap gap-2 justify-between`}>
-        <SessionTags />
+      {/* Caeli: no All/Errors/Bad Requests/Click Rage/Crashes/Incidents tabs
+          (like LogRocket's list): the toggles below are how we narrow it. */}
+      <div className={`flex w-full flex-wrap gap-2 justify-end`}>
         <div className={'flex items-start flex-row'}>
           <SelectDateRange
             isAnt

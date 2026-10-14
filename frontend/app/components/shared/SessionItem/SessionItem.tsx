@@ -346,7 +346,10 @@ function SessionItem(props: RouteComponentProps & Props) {
                 {!slim && _metaList.length > 0 && (
                   <SessionMetaList
                     onMetaClick={disableUser ? () => null : onMetaClick}
-                    maxLength={3}
+                    // Caeli: every value, no key labels (key on hover), so
+                    // no key decides which ones fit (a pay_id hid surface).
+                    valuesOnly
+                    maxLength={_metaList.length}
                     metaList={_metaList}
                   />
                 )}

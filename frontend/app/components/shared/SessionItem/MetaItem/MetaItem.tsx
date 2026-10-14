@@ -1,14 +1,32 @@
-import React from 'react';
+import { Tooltip } from 'antd';
 import cn from 'classnames';
+import React from 'react';
+
 import { TextEllipsis } from 'UI';
 
 interface Props {
   className?: string;
   label: string;
   value?: string;
+  /** Caeli: the value alone, its key in a tooltip (as LogRocket lists traits). */
+  valueOnly?: boolean;
 }
 export default function MetaItem(props: Props) {
-  const { className = '', label, value } = props;
+  const { className = '', label, value, valueOnly = false } = props;
+  if (valueOnly) {
+    return (
+      <Tooltip title={`${label}: ${value}`} mouseEnterDelay={0.3}>
+        <div
+          className={cn(
+            'text-sm inline-flex items-center px-2 py-0 rounded-lg bg-white border border-gray-light overflow-hidden max-w-[260px] text-neutral-600',
+            className,
+          )}
+        >
+          <span className="truncate">{value}</span>
+        </div>
+      </Tooltip>
+    );
+  }
   return (
     <div
       className={cn(

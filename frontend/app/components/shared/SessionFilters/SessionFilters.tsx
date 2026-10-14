@@ -1,16 +1,21 @@
-import React from 'react';
+import { Filter } from '@/mstore/types/filterConstants';
+import { Button, Card, Divider } from 'antd';
+import { ChevronDown, ChevronRight, Plus } from 'lucide-react';
 import { observer } from 'mobx-react-lite';
+import React from 'react';
+
 import { useStore } from 'App/mstore';
+
+import FilterListHeader from 'Shared/Filters/FilterList/FilterListHeader';
 import UnifiedFilterList from 'Shared/Filters/FilterList/UnifiedFilterList';
 import FilterSelection from 'Shared/Filters/FilterSelection';
-import { Button, Divider, Card } from 'antd';
-import { Plus } from 'lucide-react';
-import { Filter } from '@/mstore/types/filterConstants';
-import FilterListHeader from 'Shared/Filters/FilterList/FilterListHeader';
 
 function SessionFilters() {
   const { searchStore, filterStore } = useStore();
   const searchInstance = searchStore.instance;
+  // Caeli: collapsed by default, like LogRocket's list, so the sessions are
+  // the first thing on the page; the header says how many are applied.
+  const [open, setOpen] = React.useState(false);
 
   const allFilterOptions = filterStore.getScopedCurrentProjectFilters([
     'sessions',
@@ -108,73 +113,95 @@ function SessionFilters() {
   };
 
   return (
-    <Card className="rounded-lg!" classNames={{ body: 'p-4!' }}>
-      <FilterListHeader
-        title="Events"
-        showEventsOrder={eventFilters.length > 0}
-        orderProps={searchInstance}
-        onChangeOrder={onChangeEventsOrder}
-        filterSelection={
-          <FilterSelection
-            type="Events"
-            filters={eventOptions}
-            activeFilters={activeFilters}
-            onFilterClick={onAddFilter}
-          >
-            <Button type="default" size="small">
-              <div className="flex items-center gap-1">
-                <Plus size={16} strokeWidth={1} />
-                <span>Add</span>
-              </div>
-            </Button>
-          </FilterSelection>
-        }
-      />
+    <Card
+      className="rounded-lg!"
+      classNames={{ body: open ? 'p-4!' : 'px-4! py-2!' }}
+    >
+      <button
+        type="button"
+        className="flex items-center gap-1 w-full text-left font-medium"
+        aria-expanded={open}
+        onClick={() => setOpen((o) => !o)}
+        data-test-id="session-filters-toggle"
+      >
+        {open ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+        <span>Events and filters</span>
+        {eventFilters.length + attributeFilters.length > 0 && (
+          <span className="text-neutral-500 font-normal">
+            {` · ${eventFilters.length} event${eventFilters.length === 1 ? '' : 's'}, ${attributeFilters.length} filter${attributeFilters.length === 1 ? '' : 's'} applied`}
+          </span>
+        )}
+      </button>
+      {open && (
+        <div className="mt-3">
+          <FilterListHeader
+            title="Events"
+            showEventsOrder={eventFilters.length > 0}
+            orderProps={searchInstance}
+            onChangeOrder={onChangeEventsOrder}
+            filterSelection={
+              <FilterSelection
+                type="Events"
+                filters={eventOptions}
+                activeFilters={activeFilters}
+                onFilterClick={onAddFilter}
+              >
+                <Button type="default" size="small">
+                  <div className="flex items-center gap-1">
+                    <Plus size={16} strokeWidth={1} />
+                    <span>Add</span>
+                  </div>
+                </Button>
+              </FilterSelection>
+            }
+          />
 
-      <UnifiedFilterList
-        title="Events"
-        filters={eventFilters}
-        isDraggable={true}
-        showIndices={true}
-        className="mt-2"
-        handleRemove={handleEventRemove}
-        handleUpdate={handleEventUpdate}
-        handleAdd={handleEventAdd}
-        handleMove={moveEventFilter}
-      />
+          <UnifiedFilterList
+            title="Events"
+            filters={eventFilters}
+            isDraggable={true}
+            showIndices={true}
+            className="mt-2"
+            handleRemove={handleEventRemove}
+            handleUpdate={handleEventUpdate}
+            handleAdd={handleEventAdd}
+            handleMove={moveEventFilter}
+          />
 
-      <Divider className="my-3!" />
+          <Divider className="my-3!" />
 
-      <FilterListHeader
-        title="Filters"
-        filterSelection={
-          <FilterSelection
-            type="Filters"
-            filters={propertyOptions}
-            activeFilters={activeFilters}
-            onFilterClick={onAddFilter}
-          >
-            <Button type="default" size="small">
-              <div className="flex items-center gap-1">
-                <Plus size={16} strokeWidth={1} />
-                <span>Add</span>
-              </div>
-            </Button>
-          </FilterSelection>
-        }
-      />
+          <FilterListHeader
+            title="Filters"
+            filterSelection={
+              <FilterSelection
+                type="Filters"
+                filters={propertyOptions}
+                activeFilters={activeFilters}
+                onFilterClick={onAddFilter}
+              >
+                <Button type="default" size="small">
+                  <div className="flex items-center gap-1">
+                    <Plus size={16} strokeWidth={1} />
+                    <span>Add</span>
+                  </div>
+                </Button>
+              </FilterSelection>
+            }
+          />
 
-      <UnifiedFilterList
-        title="Filters"
-        filters={attributeFilters}
-        className="mt-2"
-        isDraggable={false}
-        showIndices={false}
-        handleRemove={handleAttributeRemove}
-        handleUpdate={handleAttributeUpdate}
-        handleAdd={searchStore.addFilter}
-        scope="sessions"
-      />
+          <UnifiedFilterList
+            title="Filters"
+            filters={attributeFilters}
+            className="mt-2"
+            isDraggable={false}
+            showIndices={false}
+            handleRemove={handleAttributeRemove}
+            handleUpdate={handleAttributeUpdate}
+            handleAdd={searchStore.addFilter}
+            scope="sessions"
+          />
+        </div>
+      )}
     </Card>
   );
 }

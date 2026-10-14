@@ -870,6 +870,9 @@ class SearchStore {
       /* not persisted */
     }
     this.updateLatestSessionCount(0);
+    // A different list: start it at page 1. Kept on page 18, a narrower
+    // list came back empty ("No sessions") although it had sessions.
+    this.currentPage = 1;
     void this.fetchSessions(true);
   };
 
@@ -881,6 +884,9 @@ class SearchStore {
       /* not persisted */
     }
     this.updateLatestSessionCount(0);
+    // A different list: start it at page 1. Kept on page 18, a narrower
+    // list came back empty ("No sessions") although it had sessions.
+    this.currentPage = 1;
     void this.fetchSessions(true);
   };
 
@@ -909,6 +915,9 @@ class SearchStore {
       /* not persisted */
     }
     this.updateLatestSessionCount(0);
+    // A different list: start it at page 1. Kept on page 18, a narrower
+    // list came back empty ("No sessions") although it had sessions.
+    this.currentPage = 1;
     void this.fetchSessions(true);
   };
 

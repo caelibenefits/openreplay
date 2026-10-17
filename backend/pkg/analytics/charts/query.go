@@ -209,7 +209,7 @@ func BuildEventConditions(filters []model.Filter, option BuildConditionsOptions)
 		if f.AutoCaptured && !f.IsEvent {
 			f.Name = CamelToSnake(f.Name)
 		}
-		if f.Name == string(FilterDuration) {
+		if f.Name == string(FilterDuration) || isEventsCountFilter(f) {
 			continue
 		}
 		conds, nameCondition := addFilter(f, opts, f.IsEvent)
@@ -288,15 +288,7 @@ func addFilter(f model.Filter, opts BuildConditionsOptions, isEventProperty bool
 		}
 	}
 	if IsMetadataColumn(f.Name) {
-		cond := buildCond(f.Name, f.Value, f.Operator, false, "singleColumn")
-		if cond != "" {
-			// caeli: metadata columns are Nullable, and NOT (NULL ...) is NULL,
-			// so "ip is not X" dropped every session with no ip at all (all of
-			// them before the key existed). A session without the value is not
-			// one of the excluded values.
-			if isNegativeOperator(f.Operator) {
-				cond = fmt.Sprintf("(isNull(%s) OR %s)", f.Name, cond)
-			}
+		if cond := metadataCond(f); cond != "" {
 			return []string{cond}, ""
 		}
 	}
@@ -543,6 +535,19 @@ func getStepSize(startTimestamp uint64, endTimestamp uint64, density int, factor
 	return uint64(stepSize) / uint64(density)
 }
 
+// metadataCond is a metadata column's condition (caeli). The columns are
+// Nullable, and NOT (NULL ...) is NULL, so "ip is not X" dropped every session
+// with no ip at all (all of them before the key existed). A session without the
+// value is not one of the excluded values. Every metadata condition goes
+// through here, so the session list and the table widget agree.
+func metadataCond(f model.Filter) string {
+	cond := buildCond(f.Name, f.Value, f.Operator, false, "singleColumn")
+	if cond != "" && isNegativeOperator(f.Operator) {
+		cond = fmt.Sprintf("(isNull(%s) OR %s)", f.Name, cond)
+	}
+	return cond
+}
+
 func isNegativeOperator(op string) bool {
 	return op == "isNot" || op == "not" || op == "notIn" || op == "notContains" || op == "notStartsWith"
 }
@@ -574,6 +579,10 @@ func reverseOperator(op string) string {
 		return "notContains"
 	case "notContains":
 		return "contains"
+	case "startsWith":
+		return "notStartsWith"
+	case "notStartsWith":
+		return "startsWith"
 	default:
 		return op
 	}
@@ -705,7 +714,11 @@ func BuildDurationWhere(filters []model.Filter, tableAlias ...string) ([]string,
 	var conds []string
 	var rest []model.Filter
 	for _, f := range filters {
-		if string(f.Name) == "duration" && f.AutoCaptured {
+		if isEventsCountFilter(f) {
+			if c := eventsCountCond(alias, f); c != "" {
+				conds = append(conds, c)
+			}
+		} else if string(f.Name) == "duration" && f.AutoCaptured {
 			v := f.Value
 			if len(v) == 1 {
 				if v[0] != "" {
@@ -730,6 +743,30 @@ func BuildDurationWhere(filters []model.Filter, tableAlias ...string) ([]string,
 		}
 	}
 	return conds, rest
+}
+
+// caeli: a session's event count is a column on the sessions table, like
+// duration. Through the generic path it became a lookup in the EVENTS'
+// properties (JSONExtractFloat(e."$properties", 'events_count')), which no
+// event has, so the filter matched nothing.
+func isEventsCountFilter(f model.Filter) bool {
+	return !f.IsEvent && (f.Name == "eventsCount" || f.Name == "events_count")
+}
+
+func eventsCountCond(alias string, f model.Filter) string {
+	op, ok := map[string]string{
+		">": ">", ">=": ">=", "<": "<", "<=": "<=", "=": "=", "is": "=",
+		"greaterThan": ">", "gt": ">", "greaterThanOrEqual": ">=", "gte": ">=",
+		"lessThan": "<", "lt": "<", "lessThanOrEqual": "<=", "lte": "<=",
+	}[f.Operator]
+	if !ok || len(f.Value) == 0 {
+		return ""
+	}
+	n, err := strconv.ParseUint(strings.TrimSpace(f.Value[0]), 10, 32)
+	if err != nil {
+		return ""
+	}
+	return fmt.Sprintf("%s.events_count %s %d", alias, op, n)
 }
 
 // buildLocationConditions extracts the url_path properties of LOCATION filters

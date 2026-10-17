@@ -353,3 +353,50 @@ func TestBuildCond_NotStartsWith(t *testing.T) {
 		t.Fatalf("got %q: a leading %% would make it a substring match", got)
 	}
 }
+
+// caeli: "events > x" filters the sessions table's events_count, like
+// duration; it used to compile to a lookup in the events' properties.
+func TestBuildWhere_EventsCountIsASessionsColumn(t *testing.T) {
+	for _, name := range []string{"eventsCount", "events_count"} {
+		f := model.Filter{Name: name, Operator: ">", Value: []string{"1"}, DataType: "number", AutoCaptured: true}
+		_, flt, _, sess := BuildWhere([]model.Filter{f}, "then", "e", "s")
+		if len(flt) != 0 {
+			t.Fatalf("%s: still compiled as an event property: %q", name, flt)
+		}
+		if len(sess) != 1 || sess[0] != "s.events_count > 1" {
+			t.Fatalf("%s: got %q, want [s.events_count > 1]", name, sess)
+		}
+	}
+	// Garbage never reaches SQL.
+	bad := model.Filter{Name: "eventsCount", Operator: ">", Value: []string{"1; DROP"}, AutoCaptured: true}
+	if _, _, _, sess := BuildWhere([]model.Filter{bad}, "then", "e", "s"); len(sess) != 0 {
+		t.Fatalf("non-numeric value produced %q", sess)
+	}
+}
+
+// caeli: the table widget builds its own session conditions; a negative
+// metadata filter there must keep sessions without the value, like the list.
+func TestTableSessionConditions_NegativeMetadataKeepsMissingValues(t *testing.T) {
+	f := model.Filter{Name: "metadata_7", Operator: "isNot", Value: []string{"67.160.35.32"}, AutoCaptured: true}
+	p := &Payload{MetricPayload: &model.MetricPayload{Series: []model.Series{{Filter: model.FilterGroup{Filters: []model.Filter{f}}}}}}
+	conds := (&TableQueryBuilder{}).buildSessionConditions(p, "", nil)
+	var meta []string
+	for _, c := range conds {
+		if strings.Contains(c, "metadata_7") {
+			meta = append(meta, c)
+		}
+	}
+	if len(meta) != 1 || !strings.Contains(meta[0], "isNull(metadata_7) OR ") {
+		t.Fatalf("got %q, want one metadata_7 condition with an isNull(metadata_7) OR … guard", conds)
+	}
+}
+
+// caeli: a negative event filter is reversed into the negative-events branch;
+// notStartsWith must reverse to startsWith, not stay itself.
+func TestReverseOperator_StartsWith(t *testing.T) {
+	for op, want := range map[string]string{"notStartsWith": "startsWith", "startsWith": "notStartsWith"} {
+		if got := reverseOperator(op); got != want {
+			t.Fatalf("reverseOperator(%q) = %q, want %q", op, got, want)
+		}
+	}
+}

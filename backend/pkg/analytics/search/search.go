@@ -498,6 +498,7 @@ LIMIT $3 OFFSET $4`,
 	}
 
 	processSessionsMetadata(resp.Sessions, metasMap)
+	s.attachSources(ctx, projectId, resp.Sessions)
 
 	return resp, nil
 }

@@ -1,0 +1,139 @@
+package search
+
+// Caeli: where each listed session came from, read off its entry URL.
+//
+// The session's own referrer and utm_* columns can't be used: the db service
+// overwrites the referrer on every page (so it ends as our own site) and the
+// ClickHouse session row is written from a copy that misses those updates.
+// The first LOCATION event's URL is always recorded, so the source is derived
+// from it at read time and works for every session already stored.
+
+import (
+	"context"
+	"fmt"
+	"net/url"
+	"strconv"
+	"strings"
+	"time"
+
+	"openreplay/backend/pkg/analytics/model"
+)
+
+const (
+	SourceGoogleAds  = "Google Ads"
+	SourceChatGPTAds = "ChatGPT Ads"
+	SourceChatGPT    = "ChatGPT"
+	SourceUntagged   = "Untagged"
+)
+
+// entryWindow bounds the events scan after the newest listed session's start;
+// a session's first page view lands within seconds of its start.
+const entryWindow = 6 * time.Hour
+
+// classifySource returns the source and campaign for a session's entry URL.
+// Only landings on our own site are classified: the project also records the
+// extension panel ON merchant pages, whose URL can carry the merchant's own
+// gclid. Anything else returns "", which the list shows as nothing.
+func classifySource(entryURL string) (source, campaign string) {
+	u, err := url.Parse(entryURL)
+	if err != nil {
+		return "", ""
+	}
+	host := strings.ToLower(u.Hostname())
+	if host != "getcaeli.com" && !strings.HasSuffix(host, ".getcaeli.com") {
+		return "", ""
+	}
+	q := u.Query()
+	utmSource := strings.ToLower(q.Get("utm_source"))
+	utmMedium := strings.ToLower(q.Get("utm_medium"))
+	utmCampaign := q.Get("utm_campaign")
+
+	switch {
+	case q.Has("gclid") || q.Has("gbraid") || q.Has("wbraid"):
+		if utmCampaign == "" {
+			utmCampaign = q.Get("gad_campaignid")
+		}
+		return SourceGoogleAds, utmCampaign
+	// Whole values: ChatGPT tags its paid links utm_source=chatgpt and its
+	// organic answer links utm_source=chatgpt.com.
+	case utmSource == "chatgpt":
+		return SourceChatGPTAds, utmCampaign
+	case utmSource == "chatgpt.com":
+		return SourceChatGPT, ""
+	case utmSource != "" || utmMedium != "":
+		label := utmSource
+		if label == "" {
+			label = utmMedium
+		} else if utmMedium != "" {
+			label += " / " + utmMedium
+		}
+		return label, utmCampaign
+	case utmCampaign != "":
+		return "Campaign", utmCampaign
+	}
+	return SourceUntagged, ""
+}
+
+// entryURLsQuery returns the first LOCATION URL of each given session.
+func entryURLsQuery(projectId int, ids []uint64, fromSec, toSec int64) string {
+	list := make([]string, len(ids))
+	for i, id := range ids {
+		list[i] = strconv.FormatUint(id, 10)
+	}
+	return fmt.Sprintf(`SELECT toString(session_id) AS session_id,
+	argMin("$current_url", created_at) AS url
+FROM product_analytics.events
+WHERE project_id = %d
+  AND "$event_name" = 'LOCATION'
+  AND created_at BETWEEN toDateTime(%d) AND toDateTime(%d)
+  AND session_id IN (%s)
+GROUP BY session_id`, projectId, fromSec, toSec, strings.Join(list, ","))
+}
+
+type entryURLRow struct {
+	SessionId string `ch:"session_id"`
+	URL       string `ch:"url"`
+}
+
+// attachSources sets Source and Campaign on each session. A failed lookup is
+// logged and leaves them empty: the list still loads without a source.
+func (s *searchImpl) attachSources(ctx context.Context, projectId int, sessions []model.Session) {
+	if len(sessions) == 0 {
+		return
+	}
+	ids := make([]uint64, 0, len(sessions))
+	var minTs, maxTs uint64
+	for _, sess := range sessions {
+		id, err := strconv.ParseUint(sess.SessionId, 10, 64)
+		if err != nil {
+			continue
+		}
+		ids = append(ids, id)
+		if minTs == 0 || sess.StartTs < minTs {
+			minTs = sess.StartTs
+		}
+		if sess.StartTs > maxTs {
+			maxTs = sess.StartTs
+		}
+	}
+	if len(ids) == 0 {
+		return
+	}
+	fromSec := int64(minTs/1000) - 60
+	toSec := int64(maxTs/1000) + int64(entryWindow/time.Second)
+
+	var rows []entryURLRow
+	if err := s.chConn.Select(ctx, &rows, entryURLsQuery(projectId, ids, fromSec, toSec)); err != nil {
+		s.Logger.Warn(ctx, "Error loading session entry URLs: %s", err)
+		return
+	}
+	entry := make(map[string]string, len(rows))
+	for _, r := range rows {
+		entry[r.SessionId] = r.URL
+	}
+	for i := range sessions {
+		if u, ok := entry[sessions[i].SessionId]; ok {
+			sessions[i].Source, sessions[i].Campaign = classifySource(u)
+		}
+	}
+}

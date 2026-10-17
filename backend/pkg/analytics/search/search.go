@@ -245,6 +245,7 @@ func (s *searchImpl) getSingleSessions(ctx context.Context, projectId int, userI
 		resp.Total = resp.Sessions[0].TotalNumberOfSessions
 	}
 	processSessionsMetadata(resp.Sessions, metasMap)
+	s.attachSources(ctx, projectId, resp.Sessions)
 	return resp, nil
 }
 
@@ -341,6 +342,7 @@ func (s *searchImpl) getSeriesSessions(ctx context.Context, projectId int, userI
 		if len(seriesData.Sessions) > 0 {
 			seriesData.Total = seriesData.Sessions[0].TotalNumberOfSessions
 		}
+		s.attachSources(ctx, projectId, seriesData.Sessions)
 		response.Series = append(response.Series, seriesData)
 	}
 	processSessionsMetadata(response.Series[0].Sessions, metasMap)

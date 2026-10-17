@@ -7,7 +7,7 @@ import { Button, Tooltip } from 'antd';
 import { SyncOutlined } from '@ant-design/icons';
 import SessionSort from '../SessionSort';
 import { SortDropdown } from '../SessionSort/SessionSort';
-import SessionTags from '../SessionTags';
+import { MIN_EVENTS_OPTIONS } from 'App/mstore/searchStore';
 
 function SessionHeader() {
   const { searchStore } = useStore();
@@ -38,8 +38,9 @@ function SessionHeader() {
       className="flex items-center px-4 py-3 justify-between w-full"
       data-test-id="session-list-header"
     >
-      <div className={`flex w-full flex-wrap gap-2 justify-between`}>
-        <SessionTags />
+      {/* Caeli: no All/Errors/Bad Requests/Click Rage/Crashes/Incidents tabs
+          (like LogRocket's list): the toggles below are how we narrow it. */}
+      <div className={`flex w-full flex-wrap gap-2 justify-end`}>
         <div className={'flex items-start flex-row'}>
           <SelectDateRange
             isAnt
@@ -57,6 +58,28 @@ function SessionHeader() {
                 { key: 'show', label: 'Show bots' },
               ]}
               onSort={({ key }: { key: string }) => searchStore.setHideBots(key === 'hide')}
+            />
+          </div>
+          <div className="px-[7px]">
+            <SortDropdown
+              defaultOption={searchStore.hideInternal ? 'hide' : 'show'}
+              current={searchStore.hideInternal ? 'Internal hidden' : 'Internal shown'}
+              sortOptions={[
+                { key: 'hide', label: 'Hide internal (our IPs: office, e2e, canaries)' },
+                { key: 'show', label: 'Show internal' },
+              ]}
+              onSort={({ key }: { key: string }) => searchStore.setHideInternal(key === 'hide')}
+            />
+          </div>
+          <div className="px-[7px]">
+            <SortDropdown
+              defaultOption={String(searchStore.minEvents)}
+              current={searchStore.minEvents ? `Events > ${searchStore.minEvents}` : 'Any events'}
+              sortOptions={MIN_EVENTS_OPTIONS.map((n) => ({
+                key: String(n),
+                label: n ? `More than ${n} event${n === 1 ? '' : 's'}` : 'Any number of events',
+              }))}
+              onSort={({ key }: { key: string }) => searchStore.setMinEvents(Number(key))}
             />
           </div>
           <Tooltip title="Refresh">

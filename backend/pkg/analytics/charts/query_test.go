@@ -3,6 +3,7 @@ package charts
 import (
 	"openreplay/backend/pkg/analytics/model"
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -321,5 +322,91 @@ func TestGetColumnAccessor(t *testing.T) {
 				t.Errorf("getColumnAccessor() nature = %v, want %v", gotNature, tt.wantNature)
 			}
 		})
+	}
+}
+
+// caeli: the session list's "Internal hidden" toggle excludes sessions by the
+// "ip" metadata. Sessions recorded before the key existed have it NULL, and
+// they are not internal traffic, so a negative filter must keep them.
+func TestAddFilter_NegativeMetadataKeepsMissingValues(t *testing.T) {
+	for _, op := range []string{"isNot", "notContains", "notStartsWith"} {
+		f := model.Filter{Name: "metadata_7", Operator: op, Value: []string{"67.160.35.32"}, AutoCaptured: true}
+		conds, _ := addFilter(f, BuildConditionsOptions{}, false)
+		if len(conds) != 1 || !strings.HasPrefix(conds[0], "(isNull(metadata_7) OR ") {
+			t.Fatalf("%s: got %q, want an isNull(metadata_7) OR … guard", op, conds)
+		}
+	}
+	// The Internal toggle sends up to 10 IPs per filter: the guard must wrap the
+	// whole NOT IN / NOT (… OR …), not one value of it.
+	for _, op := range []string{"isNot", "notContains", "notStartsWith"} {
+		f := model.Filter{Name: "metadata_7", Operator: op, Value: []string{"67.160.35.32", "66.249."}, AutoCaptured: true}
+		conds, _ := addFilter(f, BuildConditionsOptions{}, false)
+		if len(conds) != 1 || !strings.HasPrefix(conds[0], "(isNull(metadata_7) OR ") || !strings.HasSuffix(conds[0], ")") ||
+			strings.Count(conds[0], "isNull") != 1 || !strings.Contains(conds[0], "67.160.35.32") || !strings.Contains(conds[0], "66.249.") {
+			t.Fatalf("%s, two values: got %q, want one isNull(metadata_7) OR … guard around both", op, conds)
+		}
+	}
+	// A positive filter must still require the value.
+	pos, _ := addFilter(model.Filter{Name: "metadata_7", Operator: "is", Value: []string{"67.160.35.32"}, AutoCaptured: true}, BuildConditionsOptions{}, false)
+	if len(pos) != 1 || strings.Contains(pos[0], "isNull") {
+		t.Fatalf("is: got %q, want no isNull guard", pos)
+	}
+}
+
+func TestBuildCond_NotStartsWith(t *testing.T) {
+	got := buildCond("metadata_7", []string{"66.249."}, "notStartsWith", false, "singleColumn")
+	if !strings.HasPrefix(got, "NOT (") || !strings.Contains(got, "66.249.%") || !strings.Contains(got, "ILIKE") {
+		t.Fatalf("got %q, want NOT (metadata_7 ILIKE '66.249.%%')", got)
+	}
+	// Not a substring match: 166.249.x.x must not be excluded by a 66.249. prefix.
+	if strings.Contains(got, "%66.249.") {
+		t.Fatalf("got %q: a leading %% would make it a substring match", got)
+	}
+}
+
+// caeli: "events > x" filters the sessions table's events_count, like
+// duration; it used to compile to a lookup in the events' properties.
+func TestBuildWhere_EventsCountIsASessionsColumn(t *testing.T) {
+	for _, name := range []string{"eventsCount", "events_count"} {
+		f := model.Filter{Name: name, Operator: ">", Value: []string{"1"}, DataType: "number", AutoCaptured: true}
+		_, flt, _, sess := BuildWhere([]model.Filter{f}, "then", "e", "s")
+		if len(flt) != 0 {
+			t.Fatalf("%s: still compiled as an event property: %q", name, flt)
+		}
+		if len(sess) != 1 || sess[0] != "s.events_count > 1" {
+			t.Fatalf("%s: got %q, want [s.events_count > 1]", name, sess)
+		}
+	}
+	// Garbage never reaches SQL.
+	bad := model.Filter{Name: "eventsCount", Operator: ">", Value: []string{"1; DROP"}, AutoCaptured: true}
+	if _, _, _, sess := BuildWhere([]model.Filter{bad}, "then", "e", "s"); len(sess) != 0 {
+		t.Fatalf("non-numeric value produced %q", sess)
+	}
+}
+
+// caeli: the table widget builds its own session conditions; a negative
+// metadata filter there must keep sessions without the value, like the list.
+func TestTableSessionConditions_NegativeMetadataKeepsMissingValues(t *testing.T) {
+	f := model.Filter{Name: "metadata_7", Operator: "isNot", Value: []string{"67.160.35.32"}, AutoCaptured: true}
+	p := &Payload{MetricPayload: &model.MetricPayload{Series: []model.Series{{Filter: model.FilterGroup{Filters: []model.Filter{f}}}}}}
+	conds := (&TableQueryBuilder{}).buildSessionConditions(p, "", nil)
+	var meta []string
+	for _, c := range conds {
+		if strings.Contains(c, "metadata_7") {
+			meta = append(meta, c)
+		}
+	}
+	if len(meta) != 1 || !strings.Contains(meta[0], "isNull(metadata_7) OR ") {
+		t.Fatalf("got %q, want one metadata_7 condition with an isNull(metadata_7) OR … guard", conds)
+	}
+}
+
+// caeli: a negative event filter is reversed into the negative-events branch;
+// notStartsWith must reverse to startsWith, not stay itself.
+func TestReverseOperator_StartsWith(t *testing.T) {
+	for op, want := range map[string]string{"notStartsWith": "startsWith", "startsWith": "notStartsWith"} {
+		if got := reverseOperator(op); got != want {
+			t.Fatalf("reverseOperator(%q) = %q, want %q", op, got, want)
+		}
 	}
 }

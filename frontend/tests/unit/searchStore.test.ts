@@ -87,15 +87,20 @@ const mockFilterStore = {
   checkDefaultSubfilters: jest.fn(() => false),
   getEventFilters: jest.fn(async () => [] as any[]),
   findEvent: jest.fn(),
+  // Caeli: the Bots/Internal toggles read the catalog for their columns.
+  fetchFilters: jest.fn(async () => undefined),
+  getCurrentProjectFilters: jest.fn(() => [] as any[]),
 };
 
 jest.mock('App/mstore', () => ({
   sessionStore: mockSessionStore,
   settingsStore: mockSettingsStore,
   filterStore: mockFilterStore,
+  projectStore: { activeSiteId: 1 },
 }));
 
 import SearchStore, {
+  CATALOG_WAIT_MS,
   checkValues,
   filterMap,
 } from '../../app/mstore/searchStore';
@@ -139,10 +144,28 @@ describe('SearchStore class', () => {
     mockSessionFetch.mockClear();
   });
 
-  it('addFilterByKeyAndValue adds filter and triggers fetch', () => {
+  it('addFilterByKeyAndValue adds filter and triggers fetch', async () => {
     store.addFilterByKeyAndValue(FilterKey.USERID, ['42']);
     expect(store.instance.filters.length).toBe(1);
+    // Caeli: the search waits for the filter catalog first (ensureFilterCatalog).
+    await new Promise((r) => setTimeout(r, 0));
     expect(mockSessionFetch).toHaveBeenCalled();
+  });
+
+  // Caeli: a hung /filters must not hold the list back; past CATALOG_WAIT_MS the
+  // search goes without the catalog.
+  it('fetchSessions does not wait on a hung filter catalog', async () => {
+    jest.useFakeTimers();
+    try {
+      store.hideInternal = true;
+      mockFilterStore.fetchFilters.mockImplementationOnce(() => new Promise(() => {}));
+      const done = store.fetchSessions();
+      await jest.advanceTimersByTimeAsync(CATALOG_WAIT_MS);
+      await done;
+      expect(mockSessionFetch).toHaveBeenCalledTimes(1);
+    } finally {
+      jest.useRealTimers();
+    }
   });
 
   it('fetchSessions applies duration filter from settings', async () => {
@@ -158,5 +181,21 @@ describe('SearchStore class', () => {
     );
     expect(duration).toBeTruthy();
     expect(duration.value).toEqual(["1000"]);
+  });
+
+  // Caeli: a toggle that narrows the list kept the page, so page 18 of the
+  // wider list asked for an offset the narrower one did not reach and showed
+  // "No sessions" (2026-10-13, query_log: OFFSET 170, 0 rows).
+  it.each([
+    ['setMinEvents', (st: SearchStore) => st.setMinEvents(1)],
+    ['setHideInternal', (st: SearchStore) => st.setHideInternal(true)],
+    ['setHideBots', (st: SearchStore) => st.setHideBots(true)],
+  ])('%s starts the list again at page 1', async (_name, toggle) => {
+    store.updateCurrentPage(18);
+    toggle(store);
+    expect(store.currentPage).toBe(1);
+    await new Promise((r) => setTimeout(r, 0));
+    const call = mockSessionFetch.mock.calls.at(-1)?.[0] as any;
+    expect(call.page).toBe(1);
   });
 });

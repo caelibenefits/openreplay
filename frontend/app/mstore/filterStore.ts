@@ -65,6 +65,10 @@ export default class FilterStore {
 
   private filterCache: Record<string, CacheEntry> = {};
   private pendingFetches: Record<string, Promise<Filter[]>> = {};
+  // Caeli: the catalog load already in flight per project. PrivateRoutes loads
+  // it on mount and the first search waits for it, so without this a plain page
+  // load sent /filters twice.
+  private catalogInFlight: Record<string, Promise<Filter[]>> = {};
 
   constructor() {
     makeAutoObservable(this);
@@ -447,7 +451,21 @@ export default class FilterStore {
     if (!force && this.filters[projectId]?.length) {
       return this.getFilters(projectId);
     }
+    if (!force && projectId in this.catalogInFlight) {
+      return this.catalogInFlight[projectId];
+    }
+    const load = this.loadFilters(projectId);
+    this.catalogInFlight[projectId] = load;
+    try {
+      return await load;
+    } finally {
+      if (this.catalogInFlight[projectId] === load) {
+        delete this.catalogInFlight[projectId];
+      }
+    }
+  };
 
+  private loadFilters = async (projectId: string): Promise<Filter[]> => {
     this.setIsLoadingFilters(true);
 
     try {

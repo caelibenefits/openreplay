@@ -16,6 +16,9 @@ export default {
       '<rootDir>/frontend/tests/mocks/AnimatedSVGMock.tsx',
     // Uses `import.meta.glob`, which Jest cannot parse.
     '^Shared/flagAssets$': '<rootDir>/frontend/tests/mocks/flagAssets.mock.js',
+    // caeli: the `ENV` alias tsconfig.json maps to ./env.ts; Vite resolves it
+    // at build, Jest needs it spelled out (split-utils.ts imports it).
+    '^ENV$': '<rootDir>/frontend/env.ts',
     '^Types/(.+)$': '<rootDir>/frontend/app/types/$1',
     '^App/(.+)$': '<rootDir>/frontend/app/$1',
     '\\.(css|less)$': '<rootDir>/frontend/tests/mocks/style.mock.js',

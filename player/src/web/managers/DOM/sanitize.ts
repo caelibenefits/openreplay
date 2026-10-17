@@ -1,3 +1,4 @@
+import { rewriteAssetUrls } from './assetRewrite';
 /**
  * Security sanitization for replay DOM construction.
  *
@@ -181,6 +182,9 @@ const CSS_SCRIPT_CONSTRUCTS =
   /(expression\s*\(|-moz-binding\s*:|(?:javascript|vbscript)\s*:)/gi;
 
 export function sanitizeCssText(cssText: string): string {
+  // Caeli: every CSS string the player applies passes here; route asset-host
+  // URLs through the host's proxy too (assetRewrite.ts).
+  cssText = rewriteAssetUrls(cssText);
   CSS_SCRIPT_CONSTRUCTS.lastIndex = 0;
   if (!CSS_SCRIPT_CONSTRUCTS.test(cssText)) {
     return cssText;

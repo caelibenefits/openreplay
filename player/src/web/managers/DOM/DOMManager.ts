@@ -30,6 +30,7 @@ import {
   VText,
 } from './VirtualDOM';
 import { deleteRule, insertRule } from './safeCSSRules';
+import { inlineAssetStylesheet, isAssetStylesheet, rewriteAssetUrls } from './assetRewrite';
 import {
   REPLAY_CSP,
   REPLAY_IFRAME_SANDBOX,
@@ -335,6 +336,19 @@ export default class DOMManager extends ListWalker<Message> {
 
       // TODOTODO: check if node actually exists on the page, not just in memory
       this.stylesManager.setStyleHandlers(vn.node as HTMLLinkElement, value);
+      // Caeli: a stylesheet copy on the asset host loads fonts by absolute
+      // asset-host URLs. Give the link a rewritten inline copy INSTEAD of the
+      // copy itself (set late, the copy would already have fetched its fonts
+      // from the asset host, failing CORS); the proxied copy is the fallback.
+      if (isAssetStylesheet(value)) {
+        const link = vn.node as HTMLLinkElement;
+        const proxied = rewriteAssetUrls(value);
+        void inlineAssetStylesheet(value).then((dataUrl) => {
+          link.setAttribute('href', dataUrl ?? proxied);
+        });
+        this.removeBodyScroll(msg.id, vn);
+        return;
+      }
     }
     if (vn.isSVG && value.startsWith('url(')) {
       /* SVG shape ID-s for masks etc. Sometimes referred with the full-page url, which we don't have in replay */

@@ -1,6 +1,10 @@
+import { configureAssetRewrite } from '@openreplay/player';
+import ENV_FOR_ASSETS from 'ENV';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { configurePlayer } from 'Player/config';
 import {
+
+
   App,
   ConfigProvider,
   Empty,
@@ -27,6 +31,18 @@ import './init';
 import { RootStore, StoreProvider, client, userStore } from './mstore';
 import './styles/global.css';
 import './styles/index.css';
+
+// Caeli: recordings point at OpenReplay's asset host, which only allows
+// app.openreplay.com; through our /or-api proxy, also proxy /or-assets.
+try {
+  const api = new URL(ENV_FOR_ASSETS.API_EDP || '', window.location.origin);
+  if (api.pathname.replace(/\/$/, '') === '/or-api') {
+    configureAssetRewrite('https://assets.openreplay.com/', `${window.location.origin}/or-assets/`);
+  }
+} catch {
+  /* no rewrite */
+}
+
 
 configurePlayer({
   logger,

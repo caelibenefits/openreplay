@@ -291,6 +291,33 @@ export default defineConfig(({ mode }) => {
       fs: {
         allow: [path.resolve(__dirname), PLAYER_DIR],
       },
+      // Caeli: OpenReplay Cloud's API, same-origin. The refresh token is a
+      // cookie; from localhost to api.openreplay.com the browser treats it as
+      // third-party and never sends it, so /refresh 403s and the session ends
+      // at the first token expiry. Through this proxy it is a localhost cookie.
+      proxy: {
+        // Recordings' asset copies (assets.openreplay.com allows only
+        // app.openreplay.com; fonts from it fail CORS elsewhere).
+        '/or-assets': {
+          target: 'https://assets.openreplay.com',
+          changeOrigin: true,
+          rewrite: (p: string) => p.replace(/^\/or-assets/, ''),
+          // The replay runs in a sandboxed (null-origin) frame, so its font
+          // loads are cross-origin even here; the host allows only its own app.
+          configure: (proxy: any) => {
+            proxy.on('proxyRes', (res: any) => {
+              res.headers['access-control-allow-origin'] = '*';
+            });
+          },
+        },
+        '/or-api': {
+          target: 'https://api.openreplay.com',
+          changeOrigin: true,
+          rewrite: (p: string) => p.replace(/^\/or-api/, ''),
+          cookieDomainRewrite: '',
+          cookiePathRewrite: { '*': '/' },
+        },
+      },
     },
     optimizeDeps: {
       exclude: ['@openreplay/player'],

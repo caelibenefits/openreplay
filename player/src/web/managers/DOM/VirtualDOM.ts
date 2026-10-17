@@ -1,5 +1,6 @@
 import { isIFrameElement, isRootNode } from '../../../guards';
 import { insertRule, deleteRule, replaceRule } from './safeCSSRules';
+import { rewriteAssetUrls } from './assetRewrite';
 
 function isNode(sth: any): sth is Node {
   return !!sth && sth.nodeType != null;
@@ -207,7 +208,7 @@ export class VElement extends VParent<Element> {
   }
 
   setAttribute(name: string, value: string) {
-    this.newAttributes.set(name, value);
+    this.newAttributes.set(name, rewriteAssetUrls(value));
   }
 
   applyStyleChanges(styles: [prop: string, value: string][]) {
@@ -343,7 +344,9 @@ export class VText extends VNode<Text> {
   private changed: boolean = false;
 
   setData(data: string) {
-    this.data = data;
+    // Caeli: text nodes include <style> contents (SetCssData), whose url()s
+    // point at the asset host (assetRewrite.ts).
+    this.data = rewriteAssetUrls(data);
     this.changed = true;
   }
 

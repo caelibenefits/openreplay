@@ -9,6 +9,54 @@ import {
 } from 'Types/filter/newFilter';
 import { makeAutoObservable, runInAction } from 'mobx';
 
+/**
+ * Caeli: the browser names OpenReplay gives crawlers. It names a session's
+ * browser with ua-parser (uap-core regexes.yaml), whose first rule lists known
+ * crawlers by name (GoogleOther, Googlebot, bingbot, GPTBot, …). Extend when a
+ * new one shows up in the list.
+ */
+export const BOT_BROWSERS = [
+  'AppleBot',
+  'Applebot',
+  'GoogleOther',
+  'Googlebot',
+  'Google-InspectionTool',
+  'AdsBot-Google',
+  'Mediapartners-Google',
+  'bingbot',
+  'BingPreview',
+  'YandexBot',
+  'Baiduspider',
+  'DuckDuckBot',
+  'GPTBot',
+  'ChatGPT-User',
+  'OAI-SearchBot',
+  'ClaudeBot',
+  'PerplexityBot',
+  'Amazonbot',
+  'Bytespider',
+  'facebookexternalhit',
+  'meta-externalagent',
+  'Twitterbot',
+  'LinkedInBot',
+  'Slackbot',
+  'SemrushBot',
+  'AhrefsBot',
+  'MJ12bot',
+  'PetalBot',
+  'HeadlessChrome',
+] as const;
+
+const MAX_FILTER_VALUES = 10;
+const HIDE_BOTS_KEY = 'caeli_hide_bots';
+function readHideBots(): boolean {
+  try {
+    return localStorage.getItem(HIDE_BOTS_KEY) !== '0';
+  } catch {
+    return true;
+  }
+}
+
 import {
   filterStore,
   projectStore,
@@ -125,6 +173,11 @@ class SearchStore {
   loadingFilterSearch = false;
   isSaving: boolean = false;
   activeTags: any[] = [];
+
+  // Caeli: crawlers that run our tracker (Google's GoogleOther, Apple's
+  // Applebot, …) are recorded and billed like visitors. Hidden by default,
+  // per browser; the toggle in SessionHeader shows them.
+  hideBots: boolean = readHideBots();
   urlParsed: boolean = false;
   searchInProgress = false;
 
@@ -537,6 +590,7 @@ class SearchStore {
       let filter = this.instance.toSearch();
       filter = this.applyTagFilter(filter, this.activeTags);
       filter = this.applyDurationFilter(filter);
+      filter = this.applyBotFilter(filter);
 
       // Set time filter if we have the latest request time
       if (this.latestRequestTime) {
@@ -714,6 +768,7 @@ class SearchStore {
     let filter = this.instance.toSearch();
     filter = this.applyTagFilter(filter, this.activeTags);
     filter = this.applyDurationFilter(filter);
+    filter = this.applyBotFilter(filter);
     this.latestRequestTime = filter.startDate;
     this.latestList = [];
     this.searchInProgress = true;
@@ -763,6 +818,48 @@ class SearchStore {
     return {
       ...filter,
       filters: [...filter.filters, tagFilter.toJson()],
+    };
+  }
+
+  setHideBots = (hide: boolean) => {
+    this.hideBots = hide;
+    try {
+      localStorage.setItem(HIDE_BOTS_KEY, hide ? '1' : '0');
+    } catch {
+      /* not persisted */
+    }
+    this.updateLatestSessionCount(0);
+    void this.fetchSessions(true);
+  };
+
+  private applyBotFilter(filter: any): any {
+    if (!this.hideBots) return filter;
+    // A search that already filters on the browser is the user's own call.
+    if (filter.filters.some((f: any) => f.name === FilterKey.USER_BROWSER)) {
+      return filter;
+    }
+    // The API accepts at most 10 values per filter (validate:"max=10" on
+    // Filter.Value, a 400 otherwise); filters are ANDed, so several "is not"
+    // chunks exclude the whole list.
+    const chunks: string[][] = [];
+    for (let i = 0; i < BOT_BROWSERS.length; i += MAX_FILTER_VALUES) {
+      chunks.push(BOT_BROWSERS.slice(i, i + MAX_FILTER_VALUES));
+    }
+    return {
+      ...filter,
+      filters: [
+        ...filter.filters,
+        ...chunks.map((value) => ({
+          name: FilterKey.USER_BROWSER,
+          operator: 'isNot',
+          value,
+          dataType: 'string',
+          isEvent: false,
+          autoCaptured: true,
+          propertyOrder: 'and',
+          filters: [],
+        })),
+      ],
     };
   }
 

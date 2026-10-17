@@ -49,6 +49,27 @@ export const BOT_BROWSERS = [
 
 const MAX_FILTER_VALUES = 10;
 const HIDE_BOTS_KEY = 'caeli_hide_bots';
+const HIDE_INTERNAL_KEY = 'caeli_hide_internal';
+const MIN_EVENTS_KEY = 'caeli_min_events';
+// Caeli: how long a search waits for the filter catalog before going without it.
+export const CATALOG_WAIT_MS = 4000;
+/** "More than N events"; 0 = any. */
+export const MIN_EVENTS_OPTIONS = [0, 1, 3, 5, 10] as const;
+function readMinEvents(): number {
+  try {
+    const n = Number(localStorage.getItem(MIN_EVENTS_KEY));
+    return (MIN_EVENTS_OPTIONS as readonly number[]).includes(n) ? n : 0;
+  } catch {
+    return 0;
+  }
+}
+function readHideInternal(): boolean {
+  try {
+    return localStorage.getItem(HIDE_INTERNAL_KEY) !== '0';
+  } catch {
+    return true;
+  }
+}
 function readHideBots(): boolean {
   try {
     return localStorage.getItem(HIDE_BOTS_KEY) !== '0';
@@ -64,6 +85,12 @@ import {
   settingsStore,
 } from 'App/mstore';
 import { checkFilterValue } from 'App/mstore/types/filter';
+import {
+  excludeInternalFilters,
+  excludeTaggedBotsFilter,
+  ipColumn,
+  metadataColumn,
+} from 'App/utils/caeliInternalTraffic';
 import FilterItem from 'App/mstore/types/filterItem';
 import SavedSearch, { ISavedSearch } from 'App/mstore/types/savedSearch';
 import Search from 'App/mstore/types/search';
@@ -178,6 +205,15 @@ class SearchStore {
   // Applebot, …) are recorded and billed like visitors. Hidden by default,
   // per browser; the toggle in SessionHeader shows them.
   hideBots: boolean = readHideBots();
+
+  // Caeli: our own traffic (e2e, canaries, the office), by the session's "ip"
+  // against slack-app's INTERNAL_TEST_IPS (utils/caeliInternalTraffic.ts).
+  // Hidden by default, per browser; the toggle in SessionHeader shows it.
+  hideInternal: boolean = readHideInternal();
+
+  // Caeli: only sessions with MORE than this many events (0 = any). The
+  // one-event, one-second sessions are mostly bounces and crawlers.
+  minEvents: number = readMinEvents();
   urlParsed: boolean = false;
   searchInProgress = false;
 
@@ -587,10 +623,13 @@ class SearchStore {
 
   async checkForLatestSessionCount(): Promise<void> {
     try {
+      await this.ensureFilterCatalog();
       let filter = this.instance.toSearch();
       filter = this.applyTagFilter(filter, this.activeTags);
       filter = this.applyDurationFilter(filter);
       filter = this.applyBotFilter(filter);
+    filter = this.applyInternalFilter(filter);
+    filter = this.applyMinEventsFilter(filter);
 
       // Set time filter if we have the latest request time
       if (this.latestRequestTime) {
@@ -765,10 +804,14 @@ class SearchStore {
     const controller = new AbortController();
     this.searchAbort = controller;
 
+    await this.ensureFilterCatalog();
+    if (controller.signal.aborted) return;
     let filter = this.instance.toSearch();
     filter = this.applyTagFilter(filter, this.activeTags);
     filter = this.applyDurationFilter(filter);
     filter = this.applyBotFilter(filter);
+    filter = this.applyInternalFilter(filter);
+    filter = this.applyMinEventsFilter(filter);
     this.latestRequestTime = filter.startDate;
     this.latestList = [];
     this.searchInProgress = true;
@@ -829,11 +872,107 @@ class SearchStore {
       /* not persisted */
     }
     this.updateLatestSessionCount(0);
+    // A different list: start it at page 1. Kept on page 18, a narrower
+    // list came back empty ("No sessions") although it had sessions.
+    this.currentPage = 1;
     void this.fetchSessions(true);
   };
 
+  setHideInternal = (hide: boolean) => {
+    this.hideInternal = hide;
+    try {
+      localStorage.setItem(HIDE_INTERNAL_KEY, hide ? '1' : '0');
+    } catch {
+      /* not persisted */
+    }
+    this.updateLatestSessionCount(0);
+    // A different list: start it at page 1. Kept on page 18, a narrower
+    // list came back empty ("No sessions") although it had sessions.
+    this.currentPage = 1;
+    void this.fetchSessions(true);
+  };
+
+  /**
+   * Caeli: the Internal and Bots toggles find their columns (ip, bot) in the
+   * filter catalog. A fresh page load searched before the catalog arrived, so
+   * the first list ignored both toggles until a manual refresh (Tingyi,
+   * 2026-10-11). Cached after the first load; a failure filters without it,
+   * and so does a load slower than CATALOG_WAIT_MS: a hung /filters must not
+   * hold the list (or the timed latest-session count) back.
+   */
+  private async ensureFilterCatalog(): Promise<void> {
+    if (!this.hideBots && !this.hideInternal) return;
+    const siteId = projectStore.activeSiteId;
+    if (!siteId) return;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    try {
+      await Promise.race([
+        filterStore.fetchFilters(String(siteId)),
+        new Promise<void>((resolve) => {
+          timer = setTimeout(resolve, CATALOG_WAIT_MS);
+        }),
+      ]);
+    } catch {
+      /* the toggles fall back to filtering without the catalog's columns */
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  setMinEvents = (n: number) => {
+    this.minEvents = n;
+    try {
+      localStorage.setItem(MIN_EVENTS_KEY, String(n));
+    } catch {
+      /* not persisted */
+    }
+    this.updateLatestSessionCount(0);
+    // A different list: start it at page 1. Kept on page 18, a narrower
+    // list came back empty ("No sessions") although it had sessions.
+    this.currentPage = 1;
+    void this.fetchSessions(true);
+  };
+
+  private applyMinEventsFilter(filter: any): any {
+    if (!this.minEvents) return filter;
+    if (filter.filters.some((f: any) => f.name === FilterKey.EVENTS_COUNT)) return filter;
+    return {
+      ...filter,
+      filters: [
+        ...filter.filters,
+        {
+          name: FilterKey.EVENTS_COUNT,
+          operator: '>',
+          value: [String(this.minEvents)],
+          dataType: 'number',
+          isEvent: false,
+          autoCaptured: true,
+          propertyOrder: 'and',
+          filters: [],
+        },
+      ],
+    };
+  }
+
+  private applyInternalFilter(filter: any): any {
+    if (!this.hideInternal) return filter;
+    // Until the catalog names the "ip" column there is nothing to filter on;
+    // showing everything beats guessing a slot.
+    const column = ipColumn(filterStore.getCurrentProjectFilters());
+    if (!column) return filter;
+    // A search that already filters on ip is the user's own call.
+    if (filter.filters.some((f: any) => f.name === column)) return filter;
+    return { ...filter, filters: [...filter.filters, ...excludeInternalFilters(column)] };
+  }
+
   private applyBotFilter(filter: any): any {
     if (!this.hideBots) return filter;
+    // Sessions www tagged as automated (bot = webdriver | ua). Until the
+    // catalog has the key there is nothing to filter on.
+    const botCol = metadataColumn(filterStore.getCurrentProjectFilters(), 'bot');
+    if (botCol && !filter.filters.some((f: any) => f.name === botCol)) {
+      filter = { ...filter, filters: [...filter.filters, excludeTaggedBotsFilter(botCol)] };
+    }
     // A search that already filters on the browser is the user's own call.
     if (filter.filters.some((f: any) => f.name === FilterKey.USER_BROWSER)) {
       return filter;

@@ -9,6 +9,7 @@ interface Props {
   maxLength?: number;
   onMetaClick?: (meta: { name: string; value: string }) => void;
   horizontal?: boolean;
+  valuesOnly?: boolean;
 }
 
 export default function SessionMetaList(props: Props) {
@@ -17,6 +18,7 @@ export default function SessionMetaList(props: Props) {
     metaList,
     maxLength = 14,
     horizontal = false,
+    valuesOnly = false,
   } = props;
 
   return (
@@ -33,7 +35,7 @@ export default function SessionMetaList(props: Props) {
           className="cursor-pointer"
           onClick={() => props.onMetaClick?.({ name: `_${label}`, value })}
         >
-          <MetaItem label={label} value={`${value}`} />
+          <MetaItem label={label} value={`${value}`} valueOnly={valuesOnly} />
         </div>
       ))}
 

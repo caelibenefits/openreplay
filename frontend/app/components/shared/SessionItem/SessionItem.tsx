@@ -50,6 +50,9 @@ interface Props {
     userNumericHash: number;
     live: boolean;
     metadata: Record<string, any>;
+    // Caeli: from the entry URL (api search/source.go)
+    source?: string;
+    campaign?: string;
     issueTypes: [];
     active: boolean;
     isCallActive?: boolean;
@@ -134,6 +137,8 @@ function SessionItem(props: RouteComponentProps & Props) {
     userNumericHash,
     live: sessionLive,
     metadata,
+    source,
+    campaign,
     issueTypes,
     active,
     platform,
@@ -343,6 +348,14 @@ function SessionItem(props: RouteComponentProps & Props) {
                     </div>
                   </div>
                 </div>
+                {source && (
+                  <div
+                    className="text-sm text-neutral-500 truncate max-w-full"
+                    title={campaign ? `${source} · campaign ${campaign}` : source}
+                  >
+                    {campaign ? `${source} · ${campaign}` : source}
+                  </div>
+                )}
                 {!slim && _metaList.length > 0 && (
                   <SessionMetaList
                     onMetaClick={disableUser ? () => null : onMetaClick}

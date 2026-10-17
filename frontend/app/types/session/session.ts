@@ -126,6 +126,9 @@ export interface ISession {
   issueTypes: string[];
   issues?: IIssue[];
   referrer?: string | null;
+  // Caeli: from the entry URL (api search/source.go)
+  source?: string;
+  campaign?: string;
   userDeviceHeapSize?: number;
   userDeviceMemorySize?: number;
   errors?: SessionError[];
@@ -268,6 +271,10 @@ export default class Session {
   issues: Issue[];
 
   referrer: ISession['referrer'];
+
+  source: ISession['source'];
+
+  campaign: ISession['campaign'];
 
   userDeviceHeapSize: ISession['userDeviceHeapSize'];
 

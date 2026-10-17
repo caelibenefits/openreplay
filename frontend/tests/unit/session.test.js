@@ -30,3 +30,13 @@ describe('Testing Session class', () => {
     expect([...sessionInfo.events.slice(0, 10)]).toMatchObject(events);
   });
 });
+
+// Caeli: the session list reads source/campaign off the search response
+// (api search/source.go); the Session constructor must carry them through.
+describe('Session source', () => {
+  test('keeps source and campaign from the search response', () => {
+    const s = new Session({ ...session.data, source: 'Google Ads', campaign: '24356000612' });
+    expect(s.source).toBe('Google Ads');
+    expect(s.campaign).toBe('24356000612');
+  });
+});

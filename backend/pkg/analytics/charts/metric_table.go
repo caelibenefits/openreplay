@@ -674,7 +674,7 @@ func (t *TableQueryBuilder) buildSessionConditions(r *Payload, metricFormat stri
 			if column, ok := sessionProperties[f.Name]; ok {
 				subCondition = append(subCondition, buildCond(column, f.Value, f.Operator, false, "singleColumn"))
 			} else if IsMetadataColumn(f.Name) {
-				subCondition = append(subCondition, buildCond(f.Name, f.Value, f.Operator, false, "singleColumn"))
+				subCondition = append(subCondition, metadataCond(f))
 			}
 			if len(subCondition) > 0 {
 				sessionConditions = append(sessionConditions, fmt.Sprintf("(%s)", strings.Join(subCondition, " OR ")))

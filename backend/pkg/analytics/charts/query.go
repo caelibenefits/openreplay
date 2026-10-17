@@ -288,15 +288,7 @@ func addFilter(f model.Filter, opts BuildConditionsOptions, isEventProperty bool
 		}
 	}
 	if IsMetadataColumn(f.Name) {
-		cond := buildCond(f.Name, f.Value, f.Operator, false, "singleColumn")
-		if cond != "" {
-			// caeli: metadata columns are Nullable, and NOT (NULL ...) is NULL,
-			// so "ip is not X" dropped every session with no ip at all (all of
-			// them before the key existed). A session without the value is not
-			// one of the excluded values.
-			if isNegativeOperator(f.Operator) {
-				cond = fmt.Sprintf("(isNull(%s) OR %s)", f.Name, cond)
-			}
+		if cond := metadataCond(f); cond != "" {
 			return []string{cond}, ""
 		}
 	}
@@ -543,6 +535,19 @@ func getStepSize(startTimestamp uint64, endTimestamp uint64, density int, factor
 	return uint64(stepSize) / uint64(density)
 }
 
+// metadataCond is a metadata column's condition (caeli). The columns are
+// Nullable, and NOT (NULL ...) is NULL, so "ip is not X" dropped every session
+// with no ip at all (all of them before the key existed). A session without the
+// value is not one of the excluded values. Every metadata condition goes
+// through here, so the session list and the table widget agree.
+func metadataCond(f model.Filter) string {
+	cond := buildCond(f.Name, f.Value, f.Operator, false, "singleColumn")
+	if cond != "" && isNegativeOperator(f.Operator) {
+		cond = fmt.Sprintf("(isNull(%s) OR %s)", f.Name, cond)
+	}
+	return cond
+}
+
 func isNegativeOperator(op string) bool {
 	return op == "isNot" || op == "not" || op == "notIn" || op == "notContains" || op == "notStartsWith"
 }
@@ -574,6 +579,10 @@ func reverseOperator(op string) string {
 		return "notContains"
 	case "notContains":
 		return "contains"
+	case "startsWith":
+		return "notStartsWith"
+	case "notStartsWith":
+		return "startsWith"
 	default:
 		return op
 	}

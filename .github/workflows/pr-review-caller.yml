@@ -2,7 +2,10 @@
 # PUBLIC fork, so it must never run on Mini's self-hosted runner: the review
 # runs on GitHub's ubuntu-latest, takes the model key from repo secrets, and
 # posts as github-actions[bot]. GitHub withholds secrets from PRs opened from
-# other forks, so only people with push access can spend the key.
+# other forks, but NOT from `issue_comment`, which runs in this repo with its
+# secrets for any commenter. The reviewer's comment arm only acts on the PR
+# author's own comment, and an outsider can author a PR here from their fork,
+# so the job below also requires the commenter to be one of us.
 #
 # reviewer_ref is pinned to a COMMIT of the public tingyiy/agentic-review (the
 # one its `deployed` tag pointed at on 2026-10-17), so a merge there reaches
@@ -23,6 +26,9 @@ permissions:
 
 jobs:
   review:
+    if: >-
+      github.event_name != 'issue_comment'
+      || contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)
     uses: tingyiy/agentic-review/.github/workflows/pr-review.yml@f1c72f2b0fc8dc85436d68e62171ab20a75a2b7b
     with:
       bot_login: github-actions[bot]

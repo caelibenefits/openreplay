@@ -336,6 +336,16 @@ func TestAddFilter_NegativeMetadataKeepsMissingValues(t *testing.T) {
 			t.Fatalf("%s: got %q, want an isNull(metadata_7) OR … guard", op, conds)
 		}
 	}
+	// The Internal toggle sends up to 10 IPs per filter: the guard must wrap the
+	// whole NOT IN / NOT (… OR …), not one value of it.
+	for _, op := range []string{"isNot", "notContains", "notStartsWith"} {
+		f := model.Filter{Name: "metadata_7", Operator: op, Value: []string{"67.160.35.32", "66.249."}, AutoCaptured: true}
+		conds, _ := addFilter(f, BuildConditionsOptions{}, false)
+		if len(conds) != 1 || !strings.HasPrefix(conds[0], "(isNull(metadata_7) OR ") || !strings.HasSuffix(conds[0], ")") ||
+			strings.Count(conds[0], "isNull") != 1 || !strings.Contains(conds[0], "67.160.35.32") || !strings.Contains(conds[0], "66.249.") {
+			t.Fatalf("%s, two values: got %q, want one isNull(metadata_7) OR … guard around both", op, conds)
+		}
+	}
 	// A positive filter must still require the value.
 	pos, _ := addFilter(model.Filter{Name: "metadata_7", Operator: "is", Value: []string{"67.160.35.32"}, AutoCaptured: true}, BuildConditionsOptions{}, false)
 	if len(pos) != 1 || strings.Contains(pos[0], "isNull") {

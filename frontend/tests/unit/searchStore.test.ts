@@ -100,6 +100,7 @@ jest.mock('App/mstore', () => ({
 }));
 
 import SearchStore, {
+  CATALOG_WAIT_MS,
   checkValues,
   filterMap,
 } from '../../app/mstore/searchStore';
@@ -149,6 +150,22 @@ describe('SearchStore class', () => {
     // Caeli: the search waits for the filter catalog first (ensureFilterCatalog).
     await new Promise((r) => setTimeout(r, 0));
     expect(mockSessionFetch).toHaveBeenCalled();
+  });
+
+  // Caeli: a hung /filters must not hold the list back; past CATALOG_WAIT_MS the
+  // search goes without the catalog.
+  it('fetchSessions does not wait on a hung filter catalog', async () => {
+    jest.useFakeTimers();
+    try {
+      store.hideInternal = true;
+      mockFilterStore.fetchFilters.mockImplementationOnce(() => new Promise(() => {}));
+      const done = store.fetchSessions();
+      await jest.advanceTimersByTimeAsync(CATALOG_WAIT_MS);
+      await done;
+      expect(mockSessionFetch).toHaveBeenCalledTimes(1);
+    } finally {
+      jest.useRealTimers();
+    }
   });
 
   it('fetchSessions applies duration filter from settings', async () => {

@@ -51,6 +51,8 @@ const MAX_FILTER_VALUES = 10;
 const HIDE_BOTS_KEY = 'caeli_hide_bots';
 const HIDE_INTERNAL_KEY = 'caeli_hide_internal';
 const MIN_EVENTS_KEY = 'caeli_min_events';
+// Caeli: how long a search waits for the filter catalog before going without it.
+export const CATALOG_WAIT_MS = 4000;
 /** "More than N events"; 0 = any. */
 export const MIN_EVENTS_OPTIONS = [0, 1, 3, 5, 10] as const;
 function readMinEvents(): number {
@@ -894,16 +896,26 @@ class SearchStore {
    * Caeli: the Internal and Bots toggles find their columns (ip, bot) in the
    * filter catalog. A fresh page load searched before the catalog arrived, so
    * the first list ignored both toggles until a manual refresh (Tingyi,
-   * 2026-10-11). Cached after the first load; a failure filters without it.
+   * 2026-10-11). Cached after the first load; a failure filters without it,
+   * and so does a load slower than CATALOG_WAIT_MS: a hung /filters must not
+   * hold the list (or the timed latest-session count) back.
    */
   private async ensureFilterCatalog(): Promise<void> {
     if (!this.hideBots && !this.hideInternal) return;
     const siteId = projectStore.activeSiteId;
     if (!siteId) return;
+    let timer: ReturnType<typeof setTimeout> | undefined;
     try {
-      await filterStore.fetchFilters(String(siteId));
+      await Promise.race([
+        filterStore.fetchFilters(String(siteId)),
+        new Promise<void>((resolve) => {
+          timer = setTimeout(resolve, CATALOG_WAIT_MS);
+        }),
+      ]);
     } catch {
       /* the toggles fall back to filtering without the catalog's columns */
+    } finally {
+      clearTimeout(timer);
     }
   }
 

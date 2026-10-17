@@ -14,6 +14,7 @@ import (
 	"github.com/Masterminds/semver"
 
 	httpCfg "openreplay/backend/internal/config/http"
+	"openreplay/backend/internal/http/clientip"
 	"openreplay/backend/internal/http/geoip"
 	"openreplay/backend/internal/http/uaparser"
 	"openreplay/backend/internal/http/uuid"
@@ -266,6 +267,17 @@ func (e *handlersImpl) startSessionHandlerWeb(w http.ResponseWriter, r *http.Req
 			// Send sessionStart message to kafka
 			if err := e.producer.Produce(e.cfg.TopicRawWeb, tokenData.ID, sessionStart.Encode()); err != nil {
 				e.log.Error(r.Context(), "can't send sessionStart to queue: %s", err)
+			}
+
+			// caeli: the client IP the edge saw, as session metadata "ip" (the
+			// project must declare the key). Set here, server-side, so a
+			// browser cannot choose it; the session list's internal filter
+			// keys on it.
+			if ip := clientip.FromRequest(r); ip != "" {
+				meta := &Metadata{Key: "ip", Value: ip}
+				if err := e.producer.Produce(e.cfg.TopicRawWeb, tokenData.ID, meta.Encode()); err != nil {
+					e.log.Error(r.Context(), "can't send ip metadata to queue: %s", err)
+				}
 			}
 		}
 	} else {

@@ -1,6 +1,7 @@
 package search
 
 import (
+	"context"
 	"errors"
 	"strings"
 	"testing"
@@ -120,5 +121,15 @@ func TestCleanCampaignNames(t *testing.T) {
 		if _, err := cleanCampaignNames(rows); !errors.Is(err, ErrInvalidCampaignNames) {
 			t.Errorf("%s: err = %v, want ErrInvalidCampaignNames", name, err)
 		}
+	}
+}
+
+// The handler answers 400 when SetCampaignNames' error is
+// ErrInvalidCampaignNames; a bad list is refused before Postgres is touched.
+func TestSetCampaignNamesRefusesBadList(t *testing.T) {
+	s := &searchImpl{}
+	_, err := s.SetCampaignNames(context.Background(), 1, []CampaignName{{"1", "a"}, {"1", "b"}})
+	if !errors.Is(err, ErrInvalidCampaignNames) {
+		t.Fatalf("err = %v, want ErrInvalidCampaignNames", err)
 	}
 }

@@ -2,6 +2,11 @@ import APIClient, { apiClient, clean as cleanParams } from 'App/api_client';
 import { ISession } from 'Types/session/session';
 import { IErrorStack } from 'Types/session/errorStack';
 
+export interface CampaignName {
+  campaignId: string;
+  name: string;
+}
+
 export default class SettingsService {
   private client: APIClient;
 
@@ -108,6 +113,19 @@ export default class SettingsService {
       .then((r) => r.json())
       .then((j) => j.data || {});
   }
+
+  // Caeli: display names for campaign IDs (Preferences > Campaign Names).
+  getCampaignNames = async (): Promise<CampaignName[]> =>
+    this.client
+      .get('/sessions/campaign-names')
+      .then((r) => r.json())
+      .then((j) => j.data || []);
+
+  setCampaignNames = async (names: CampaignName[]): Promise<CampaignName[]> =>
+    this.client
+      .put('/sessions/campaign-names', { names })
+      .then((r) => r.json())
+      .then((j) => j.data || []);
 
   getSessionEvents = async (sessionId: string) =>
     this.client

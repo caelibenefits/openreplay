@@ -3,6 +3,8 @@ package search
 import (
 	"strings"
 	"testing"
+
+	"openreplay/backend/pkg/analytics/model"
 )
 
 func TestClassifySource(t *testing.T) {
@@ -74,5 +76,46 @@ func TestEntryURLsQuery(t *testing.T) {
 		if !strings.Contains(q, want) {
 			t.Errorf("query missing %q:\n%s", want, q)
 		}
+	}
+}
+
+func TestApplyCampaignNames(t *testing.T) {
+	sessions := []model.Session{
+		{SessionId: "1", Source: SourceGoogleAds, Campaign: "24356000612"},
+		{SessionId: "2", Source: SourceGoogleAds, Campaign: "999"},
+		{SessionId: "3", Source: SourceUntagged},
+	}
+	applyCampaignNames(sessions, map[string]string{"24356000612": "Product Search"})
+	if sessions[0].Campaign != "Product Search" || sessions[0].CampaignId != "24356000612" {
+		t.Errorf("named campaign = (%q, %q)", sessions[0].Campaign, sessions[0].CampaignId)
+	}
+	if sessions[1].Campaign != "999" || sessions[1].CampaignId != "" {
+		t.Errorf("unnamed campaign = (%q, %q), want the ID unchanged", sessions[1].Campaign, sessions[1].CampaignId)
+	}
+	if sessions[2].Campaign != "" || sessions[2].CampaignId != "" {
+		t.Errorf("no campaign = (%q, %q)", sessions[2].Campaign, sessions[2].CampaignId)
+	}
+}
+
+func TestCleanCampaignNames(t *testing.T) {
+	got, err := cleanCampaignNames([]CampaignName{
+		{" 24356000612 ", " Product Search "},
+		{"", "no id"},
+		{"123", ""},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 1 || got[0] != (CampaignName{"24356000612", "Product Search"}) {
+		t.Errorf("got %+v, want one trimmed row", got)
+	}
+	if _, err := cleanCampaignNames([]CampaignName{{"1", "a"}, {" 1", "b"}}); err == nil {
+		t.Error("a repeated ID was accepted")
+	}
+	if _, err := cleanCampaignNames([]CampaignName{{"1", strings.Repeat("x", maxCampaignNameLen+1)}}); err == nil {
+		t.Error("an over-long name was accepted")
+	}
+	if _, err := cleanCampaignNames(make([]CampaignName, maxCampaignNames+1)); err == nil {
+		t.Error("an over-long list was accepted")
 	}
 }

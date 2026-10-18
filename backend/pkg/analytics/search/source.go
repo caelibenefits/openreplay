@@ -131,9 +131,30 @@ func (s *searchImpl) attachSources(ctx context.Context, projectId int, sessions 
 	for _, r := range rows {
 		entry[r.SessionId] = r.URL
 	}
+	var campaigns []string
 	for i := range sessions {
 		if u, ok := entry[sessions[i].SessionId]; ok {
 			sessions[i].Source, sessions[i].Campaign = classifySource(u)
+			if sessions[i].Campaign != "" {
+				campaigns = append(campaigns, sessions[i].Campaign)
+			}
+		}
+	}
+	names, err := s.campaignNameMap(projectId, campaigns)
+	if err != nil {
+		s.Logger.Warn(ctx, "Error loading campaign names: %s", err)
+		return
+	}
+	applyCampaignNames(sessions, names)
+}
+
+// applyCampaignNames shows a campaign's name in place of its ID, keeping the
+// ID in CampaignId.
+func applyCampaignNames(sessions []model.Session, names map[string]string) {
+	for i := range sessions {
+		if name, ok := names[sessions[i].Campaign]; ok {
+			sessions[i].CampaignId = sessions[i].Campaign
+			sessions[i].Campaign = name
 		}
 	}
 }

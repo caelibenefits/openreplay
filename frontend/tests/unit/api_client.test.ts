@@ -81,6 +81,13 @@ describe('APIClient URL Replacer Logic', () => {
       path: '/sessions/search',
       expectedUrl: 'https://api-custom-subdomain.example.com/v2/api/2/sessions/search',
     },
+    // Caeli: campaign names live in the Go api (search/campaign_names.go).
+    {
+      description: 'Non-SaaS: campaign names go to the v2 api with the site ID',
+      edp: 'https://example.com/api',
+      path: '/sessions/campaign-names',
+      expectedUrl: 'https://example.com/v2/api/2/sessions/campaign-names',
+    },
     // Cards endpoint
     {
       description: 'Cards endpoint with site ID',

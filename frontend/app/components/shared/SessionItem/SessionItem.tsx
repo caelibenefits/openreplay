@@ -53,6 +53,7 @@ interface Props {
     // Caeli: from the entry URL (api search/source.go)
     source?: string;
     campaign?: string;
+    campaignId?: string;
     issueTypes: [];
     active: boolean;
     isCallActive?: boolean;
@@ -139,6 +140,7 @@ function SessionItem(props: RouteComponentProps & Props) {
     metadata,
     source,
     campaign,
+    campaignId,
     issueTypes,
     active,
     platform,
@@ -351,7 +353,11 @@ function SessionItem(props: RouteComponentProps & Props) {
                 {source && (
                   <div
                     className="text-sm text-neutral-500 truncate max-w-full"
-                    title={campaign ? `${source} · campaign ${campaign}` : source}
+                    title={
+                      campaign
+                        ? `${source} · campaign ${campaignId ? `${campaign} (${campaignId})` : campaign}`
+                        : source
+                    }
                   >
                     {campaign ? `${source} · ${campaign}` : source}
                   </div>

@@ -2,6 +2,7 @@ export const CLIENT_TABS = {
   INTEGRATIONS: 'integrations',
   PROFILE: 'account',
   SESSION_SETTINGS: 'sessions',
+  CAMPAIGN_NAMES: 'campaign-names',
   MANAGE_USERS: 'team',
   MANAGE_ROLES: 'roles',
   SITES: 'projects',

@@ -72,7 +72,7 @@ function CampaignNames() {
       help="The session list shows a campaign's name in place of its ID. The ID is the utm_campaign value, or Google Ads' campaign ID."
       actions={
         <>
-          <Button size="small" onClick={add} disabled={loading}>
+          <Button size="small" onClick={add} disabled={loading || saving}>
             Add campaign
           </Button>
           <Button
@@ -113,6 +113,7 @@ function CampaignNames() {
                     ? 'error'
                     : undefined
                 }
+                disabled={saving}
                 onChange={(e) => update(r.key, 'campaignId', e.target.value)}
               />
               <Input
@@ -120,12 +121,14 @@ function CampaignNames() {
                 placeholder="Product Search"
                 status={incomplete.has(r.key) && !r.name.trim() ? 'error' : undefined}
                 value={r.name}
+                disabled={saving}
                 onChange={(e) => update(r.key, 'name', e.target.value)}
               />
               <Button
                 type="text"
                 aria-label="Remove"
                 icon={<Trash2 size={16} />}
+                disabled={saving}
                 onClick={() => remove(r.key)}
               />
             </div>

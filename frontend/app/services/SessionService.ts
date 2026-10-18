@@ -133,17 +133,15 @@ export default class SettingsService {
       .then((r) => r.json())
       .then((j) => j.data || []);
 
-  // Caeli: where one session came from, for the replay header. startTs only
-  // bounds the server's events scan.
+  // Caeli: where one session came from, for the replay header.
   getSessionSource = async (
     sessionId: string,
-    startTs: number,
     abortSignal?: AbortSignal,
   ): Promise<SessionSource> =>
     this.client
       .get(
         `/sessions/${sessionId}/source`,
-        { startTs },
+        undefined,
         undefined,
         undefined,
         abortSignal,

@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
-	"strconv"
 	"time"
 
 	config "openreplay/backend/internal/config/api"
@@ -192,8 +191,6 @@ func (e *handlersImpl) setCampaignNames(w http.ResponseWriter, r *http.Request) 
 	e.responser.ResponseWithJSON(e.log, r.Context(), w, map[string]interface{}{"data": names}, startTime, r.URL.Path, bodySize)
 }
 
-// getSessionSource takes the session's start (ms) from the caller, which has
-// it already; it only bounds the events scan, the same window the list uses.
 func (e *handlersImpl) getSessionSource(w http.ResponseWriter, r *http.Request) {
 	startTime := time.Now()
 	projectID, err := api.GetPathParam(r, "projectId", api.ParseInt)
@@ -206,11 +203,14 @@ func (e *handlersImpl) getSessionSource(w http.ResponseWriter, r *http.Request) 
 		e.responser.ResponseWithError(e.log, r.Context(), w, http.StatusBadRequest, err, startTime, r.URL.Path, 0)
 		return
 	}
-	startTs, err := strconv.ParseUint(r.URL.Query().Get("startTs"), 10, 64)
-	if err != nil || startTs == 0 {
-		e.responser.ResponseWithError(e.log, r.Context(), w, http.StatusBadRequest, errors.New("startTs must be the session start in ms"), startTime, r.URL.Path, 0)
+	src, found, err := e.search.GetSessionSource(r.Context(), projectID, sessionID)
+	if err != nil {
+		e.responser.ResponseWithError(e.log, r.Context(), w, http.StatusInternalServerError, err, startTime, r.URL.Path, 0)
 		return
 	}
-	src := e.search.GetSessionSource(r.Context(), projectID, sessionID, startTs)
+	if !found {
+		e.responser.ResponseWithError(e.log, r.Context(), w, http.StatusNotFound, errors.New("session not found"), startTime, r.URL.Path, 0)
+		return
+	}
 	e.responser.ResponseWithJSON(e.log, r.Context(), w, map[string]interface{}{"data": src}, startTime, r.URL.Path, 0)
 }

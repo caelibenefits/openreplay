@@ -17,40 +17,47 @@ import (
 
 type fakeSourceSearch struct {
 	Search
-	calls              int
-	projectId          int
-	sessionId, startTs uint64
+	calls     int
+	projectId int
+	sessionId uint64
 }
 
-func (f *fakeSourceSearch) GetSessionSource(_ context.Context, projectId int, sessionId, startTs uint64) SessionSource {
+// knownSession is the only session the fake finds.
+const knownSession = 4065014380368490792
+
+func (f *fakeSourceSearch) GetSessionSource(_ context.Context, projectId int, sessionId uint64) (SessionSource, bool, error) {
 	f.calls++
-	f.projectId, f.sessionId, f.startTs = projectId, sessionId, startTs
-	return SessionSource{Source: SourceGoogleAds, Campaign: "Product Search", CampaignId: "24356000612"}
+	f.projectId, f.sessionId = projectId, sessionId
+	if sessionId != knownSession {
+		return SessionSource{}, false, nil
+	}
+	return SessionSource{Source: SourceGoogleAds, Campaign: "Product Search", CampaignId: "24356000612"}, true, nil
 }
 
 func TestGetSessionSourceHandler(t *testing.T) {
 	fake := &fakeSourceSearch{}
 	h := &handlersImpl{log: logger.New(), responser: api.NewResponser(web.New("test")), search: fake}
-	call := func(query string) *httptest.ResponseRecorder {
-		r := httptest.NewRequest("GET", "/v2/api/1/sessions/4065014380368490792/source"+query, nil)
-		r = mux.SetURLVars(r, map[string]string{"projectId": "1", "sessionId": "4065014380368490792"})
+	call := func(sessionID string) *httptest.ResponseRecorder {
+		r := httptest.NewRequest("GET", "/1/sessions/"+sessionID+"/source", nil)
+		r = mux.SetURLVars(r, map[string]string{"projectId": "1", "sessionId": sessionID})
 		w := httptest.NewRecorder()
 		h.getSessionSource(w, r)
 		return w
 	}
 
-	for _, q := range []string{"", "?startTs=abc", "?startTs=0"} {
-		if w := call(q); w.Code != http.StatusBadRequest || fake.calls != 0 {
-			t.Fatalf("%q: status %d, calls %d; want 400 and no lookup", q, w.Code, fake.calls)
-		}
+	if w := call("abc"); w.Code != http.StatusBadRequest || fake.calls != 0 {
+		t.Fatalf("bad id: status %d, calls %d; want 400 and no lookup", w.Code, fake.calls)
+	}
+	if w := call("123"); w.Code != http.StatusNotFound {
+		t.Fatalf("unknown session: status %d, want 404", w.Code)
 	}
 
-	w := call("?startTs=1760750000000")
+	w := call("4065014380368490792")
 	if w.Code != http.StatusOK {
 		t.Fatalf("status %d: %s", w.Code, w.Body.String())
 	}
-	if fake.projectId != 1 || fake.sessionId != 4065014380368490792 || fake.startTs != 1760750000000 {
-		t.Fatalf("lookup got project %d session %d start %d", fake.projectId, fake.sessionId, fake.startTs)
+	if fake.projectId != 1 || fake.sessionId != knownSession {
+		t.Fatalf("lookup got project %d session %d", fake.projectId, fake.sessionId)
 	}
 	var body struct {
 		Data SessionSource `json:"data"`
@@ -72,12 +79,12 @@ func TestGetSessionSourceRoute(t *testing.T) {
 		t.Fatal(err)
 	}
 	w := httptest.NewRecorder()
-	router.Get().ServeHTTP(w, httptest.NewRequest("GET", "/1/sessions/4065014380368490792/source?startTs=1760750000000", nil))
+	router.Get().ServeHTTP(w, httptest.NewRequest("GET", "/1/sessions/4065014380368490792/source", nil))
 	if w.Code != http.StatusOK || fake.calls != 1 || fake.sessionId != 4065014380368490792 || fake.projectId != 1 {
 		t.Fatalf("status %d, calls %d, project %d, session %d", w.Code, fake.calls, fake.projectId, fake.sessionId)
 	}
 	w = httptest.NewRecorder()
-	router.Get().ServeHTTP(w, httptest.NewRequest("POST", "/1/sessions/4065014380368490792/source?startTs=1760750000000", nil))
+	router.Get().ServeHTTP(w, httptest.NewRequest("POST", "/1/sessions/4065014380368490792/source", nil))
 	if w.Code != http.StatusMethodNotAllowed {
 		t.Fatalf("POST: status %d, want 405", w.Code)
 	}

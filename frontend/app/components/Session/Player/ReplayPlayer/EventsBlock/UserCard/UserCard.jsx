@@ -52,14 +52,14 @@ function UserCard({ className, width, height }) {
   const [source, setSource] = React.useState({});
   React.useEffect(() => {
     setSource({});
-    if (!sessionId || !startedAt) return undefined;
+    if (!sessionId) return undefined;
     const ctrl = new AbortController();
     sessionService
-      .getSessionSource(sessionId, startedAt, ctrl.signal)
+      .getSessionSource(sessionId, ctrl.signal)
       .then((s) => !ctrl.signal.aborted && setSource(s))
       .catch(() => {});
     return () => ctrl.abort();
-  }, [sessionId, startedAt]);
+  }, [sessionId]);
 
   const getDimension = (width, height) =>
     width && height ? (

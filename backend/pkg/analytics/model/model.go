@@ -189,16 +189,19 @@ type Session struct {
 	Viewed                bool               `json:"viewed" ch:"viewed"`
 	TotalNumberOfSessions uint64             `json:"-" ch:"total_number_of_sessions"`
 	Metadata              map[string]*string `json:"metadata" ch:"metadata"`
-	Metadata1             *string            `json:"-" ch:"metadata_1"`
-	Metadata2             *string            `json:"-" ch:"metadata_2"`
-	Metadata3             *string            `json:"-" ch:"metadata_3"`
-	Metadata4             *string            `json:"-" ch:"metadata_4"`
-	Metadata5             *string            `json:"-" ch:"metadata_5"`
-	Metadata6             *string            `json:"-" ch:"metadata_6"`
-	Metadata7             *string            `json:"-" ch:"metadata_7"`
-	Metadata8             *string            `json:"-" ch:"metadata_8"`
-	Metadata9             *string            `json:"-" ch:"metadata_9"`
-	Metadata10            *string            `json:"-" ch:"metadata_10"`
+	// Caeli: from the entry URL, set after the query (search/source.go).
+	Source     string  `json:"source,omitempty" ch:"-"`
+	Campaign   string  `json:"campaign,omitempty" ch:"-"`
+	Metadata1  *string `json:"-" ch:"metadata_1"`
+	Metadata2  *string `json:"-" ch:"metadata_2"`
+	Metadata3  *string `json:"-" ch:"metadata_3"`
+	Metadata4  *string `json:"-" ch:"metadata_4"`
+	Metadata5  *string `json:"-" ch:"metadata_5"`
+	Metadata6  *string `json:"-" ch:"metadata_6"`
+	Metadata7  *string `json:"-" ch:"metadata_7"`
+	Metadata8  *string `json:"-" ch:"metadata_8"`
+	Metadata9  *string `json:"-" ch:"metadata_9"`
+	Metadata10 *string `json:"-" ch:"metadata_10"`
 }
 
 type SessionsSearchRequest struct {

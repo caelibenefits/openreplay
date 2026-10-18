@@ -9,6 +9,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"openreplay/backend/pkg/analytics/charts"
@@ -26,6 +27,8 @@ type Search interface {
 	GetBookmarkedSessions(ctx context.Context, projectId int, userId uint64, req *model.SessionsSearchRequest) (interface{}, error)
 	GetSessionIds(ctx context.Context, projectId int, userId uint64, req *model.SessionsSearchRequest) (interface{}, error)
 	GetCounts(ctx context.Context, projectId int, req *model.SessionsSearchRequest) (sessions, users int64, err error)
+	GetCampaignNames(ctx context.Context, projectId int) ([]CampaignName, error)
+	SetCampaignNames(ctx context.Context, projectId int, names []CampaignName) ([]CampaignName, error)
 }
 
 type searchImpl struct {
@@ -34,6 +37,10 @@ type searchImpl struct {
 	Logger     logger.Logger
 	filterRefs []lexicon.FilterRef
 	projects   projects.Projects
+
+	// Caeli: campaign_names.go creates its table on first use.
+	campaignTableMu    sync.Mutex
+	campaignTableReady bool
 }
 
 func New(logger logger.Logger, chConn driver.Conn, pgConn pool.Pool, segments lexicon.Segments, projectsService projects.Projects) (Search, error) {

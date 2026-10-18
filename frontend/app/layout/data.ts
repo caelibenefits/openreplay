@@ -34,6 +34,7 @@ interface Category {
 export const enum PREFERENCES_MENU {
   ACCOUNT = 'account',
   SESSION_SETTINGS = 'sessions-settings',
+  CAMPAIGN_NAMES = 'campaign-names',
   INTEGRATIONS = 'integrations',
   WEBHOOKS = 'webhooks',
   MODULES = 'modules',
@@ -218,6 +219,12 @@ export const preferences: (t: TFunction) => Category[] = (t) => [
         label: t('Session Settings'),
         key: PREFERENCES_MENU.SESSION_SETTINGS,
         icon: 'card-list',
+      },
+      {
+        // Caeli: names for the campaign IDs the session list shows.
+        label: t('Campaign Names'),
+        key: PREFERENCES_MENU.CAMPAIGN_NAMES,
+        icon: 'bullhorn',
       },
       {
         label: t('Integrations'),

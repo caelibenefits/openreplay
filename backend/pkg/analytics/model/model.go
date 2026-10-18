@@ -192,6 +192,7 @@ type Session struct {
 	// Caeli: from the entry URL, set after the query (search/source.go).
 	Source     string  `json:"source,omitempty" ch:"-"`
 	Campaign   string  `json:"campaign,omitempty" ch:"-"`
+	CampaignId string  `json:"campaignId,omitempty" ch:"-"`
 	Metadata1  *string `json:"-" ch:"metadata_1"`
 	Metadata2  *string `json:"-" ch:"metadata_2"`
 	Metadata3  *string `json:"-" ch:"metadata_3"`

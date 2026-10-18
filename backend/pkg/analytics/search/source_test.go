@@ -1,8 +1,12 @@
 package search
 
 import (
+	"context"
+	"errors"
 	"strings"
 	"testing"
+
+	"openreplay/backend/pkg/analytics/model"
 )
 
 func TestClassifySource(t *testing.T) {
@@ -74,5 +78,58 @@ func TestEntryURLsQuery(t *testing.T) {
 		if !strings.Contains(q, want) {
 			t.Errorf("query missing %q:\n%s", want, q)
 		}
+	}
+}
+
+func TestApplyCampaignNames(t *testing.T) {
+	sessions := []model.Session{
+		{SessionId: "1", Source: SourceGoogleAds, Campaign: "24356000612"},
+		{SessionId: "2", Source: SourceGoogleAds, Campaign: "999"},
+		{SessionId: "3", Source: SourceUntagged},
+	}
+	applyCampaignNames(sessions, map[string]string{"24356000612": "Product Search"})
+	if sessions[0].Campaign != "Product Search" || sessions[0].CampaignId != "24356000612" {
+		t.Errorf("named campaign = (%q, %q)", sessions[0].Campaign, sessions[0].CampaignId)
+	}
+	if sessions[1].Campaign != "999" || sessions[1].CampaignId != "" {
+		t.Errorf("unnamed campaign = (%q, %q), want the ID unchanged", sessions[1].Campaign, sessions[1].CampaignId)
+	}
+	if sessions[2].Campaign != "" || sessions[2].CampaignId != "" {
+		t.Errorf("no campaign = (%q, %q)", sessions[2].Campaign, sessions[2].CampaignId)
+	}
+}
+
+func TestCleanCampaignNames(t *testing.T) {
+	got, err := cleanCampaignNames([]CampaignName{
+		{" 24356000612 ", " Product Search "},
+		{"", "no id"},
+		{"123", ""},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 1 || got[0] != (CampaignName{"24356000612", "Product Search"}) {
+		t.Errorf("got %+v, want one trimmed row", got)
+	}
+	for name, rows := range map[string][]CampaignName{
+		"a repeated ID":     {{"1", "a"}, {" 1", "b"}},
+		"an over-long ID":   {{strings.Repeat("9", maxCampaignIDLen+1), "a"}},
+		"an over-long name": {{"1", strings.Repeat("x", maxCampaignNameLen+1)}},
+		"an over-long list": make([]CampaignName, maxCampaignNames+1),
+	} {
+		// The handler answers 400 only for ErrInvalidCampaignNames.
+		if _, err := cleanCampaignNames(rows); !errors.Is(err, ErrInvalidCampaignNames) {
+			t.Errorf("%s: err = %v, want ErrInvalidCampaignNames", name, err)
+		}
+	}
+}
+
+// The handler answers 400 when SetCampaignNames' error is
+// ErrInvalidCampaignNames; a bad list is refused before Postgres is touched.
+func TestSetCampaignNamesRefusesBadList(t *testing.T) {
+	s := &searchImpl{}
+	_, err := s.SetCampaignNames(context.Background(), 1, []CampaignName{{"1", "a"}, {"1", "b"}})
+	if !errors.Is(err, ErrInvalidCampaignNames) {
+		t.Fatalf("err = %v, want ErrInvalidCampaignNames", err)
 	}
 }

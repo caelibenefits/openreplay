@@ -11,6 +11,7 @@ import SessionsListingSettings from 'Components/Client/SessionsListingSettings';
 import AgentsPreferences from './AgentsPreferences';
 import AuditView from './Audit/AuditView';
 import Billing from './Billing/Billing';
+import CampaignNames from './CampaignNames';
 import ClientSaas from './ClientSaas';
 import CustomFields from './CustomFields';
 import ExportedVideosList from './ExportedVideos/ExportedVideosList';
@@ -38,6 +39,8 @@ class Client extends React.PureComponent<any> {
         return <ProfileSettings />;
       case CLIENT_TABS.SESSION_SETTINGS:
         return <SessionsListingSettings />;
+      case CLIENT_TABS.CAMPAIGN_NAMES:
+        return <CampaignNames />;
       case CLIENT_TABS.INTEGRATIONS:
         return <Integrations />;
       case CLIENT_TABS.MANAGE_USERS:

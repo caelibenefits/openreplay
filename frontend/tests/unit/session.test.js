@@ -40,3 +40,11 @@ describe('Session source', () => {
     expect(s.campaign).toBe('24356000612');
   });
 });
+
+describe('Session campaign name', () => {
+  test('keeps the campaign ID beside a named campaign', () => {
+    const s = new Session({ ...session.data, source: 'Google Ads', campaign: 'Product Search', campaignId: '24356000612' });
+    expect(s.campaign).toBe('Product Search');
+    expect(s.campaignId).toBe('24356000612');
+  });
+});

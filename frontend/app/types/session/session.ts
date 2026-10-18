@@ -129,6 +129,8 @@ export interface ISession {
   // Caeli: from the entry URL (api search/source.go)
   source?: string;
   campaign?: string;
+  // set when campaign is a name from Preferences > Campaign Names
+  campaignId?: string;
   userDeviceHeapSize?: number;
   userDeviceMemorySize?: number;
   errors?: SessionError[];
@@ -275,6 +277,8 @@ export default class Session {
   source: ISession['source'];
 
   campaign: ISession['campaign'];
+
+  campaignId: ISession['campaignId'];
 
   userDeviceHeapSize: ISession['userDeviceHeapSize'];
 

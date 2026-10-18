@@ -29,6 +29,7 @@ type Search interface {
 	GetCounts(ctx context.Context, projectId int, req *model.SessionsSearchRequest) (sessions, users int64, err error)
 	GetCampaignNames(ctx context.Context, projectId int) ([]CampaignName, error)
 	SetCampaignNames(ctx context.Context, projectId int, names []CampaignName) ([]CampaignName, error)
+	GetSessionSource(ctx context.Context, projectId int, sessionId uint64, startTs uint64) SessionSource
 }
 
 type searchImpl struct {

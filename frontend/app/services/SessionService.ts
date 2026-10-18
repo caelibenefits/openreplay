@@ -2,6 +2,12 @@ import APIClient, { apiClient, clean as cleanParams } from 'App/api_client';
 import { ISession } from 'Types/session/session';
 import { IErrorStack } from 'Types/session/errorStack';
 
+export interface SessionSource {
+  source?: string;
+  campaign?: string;
+  campaignId?: string;
+}
+
 export interface CampaignName {
   campaignId: string;
   name: string;
@@ -126,6 +132,17 @@ export default class SettingsService {
       .put('/sessions/campaign-names', { names })
       .then((r) => r.json())
       .then((j) => j.data || []);
+
+  // Caeli: where one session came from, for the replay header. startTs only
+  // bounds the server's events scan.
+  getSessionSource = async (
+    sessionId: string,
+    startTs: number,
+  ): Promise<SessionSource> =>
+    this.client
+      .get(`/sessions/${sessionId}/source`, { startTs })
+      .then((r) => r.json())
+      .then((j) => j.data || {});
 
   getSessionEvents = async (sessionId: string) =>
     this.client

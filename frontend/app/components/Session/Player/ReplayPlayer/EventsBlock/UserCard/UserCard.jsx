@@ -14,6 +14,8 @@ import { capitalize } from 'App/utils';
 import { Popover } from 'antd';
 import { observer } from 'mobx-react-lite';
 import { useTranslation } from 'react-i18next';
+import { sessionService } from 'App/services';
+import { sourceLabel, sourceTitle } from 'App/utils/sessionSource';
 
 function UserCard({ className, width, height }) {
   const { t } = useTranslation();
@@ -43,6 +45,23 @@ function UserCard({ className, width, height }) {
   } = session;
 
   const hasUserDetails = !!userId || !!userAnonymousId;
+
+  // Caeli: where the visit came from, as in the session list. A failed
+  // lookup shows nothing; the rest of the header doesn't wait for it.
+  const { sessionId } = session;
+  const [source, setSource] = React.useState({});
+  React.useEffect(() => {
+    setSource({});
+    if (!sessionId || !startedAt) return undefined;
+    let current = true;
+    sessionService
+      .getSessionSource(sessionId, startedAt)
+      .then((s) => current && setSource(s))
+      .catch(() => {});
+    return () => {
+      current = false;
+    };
+  }, [sessionId, startedAt]);
 
   const getDimension = (width, height) =>
     width && height ? (
@@ -123,6 +142,18 @@ function UserCard({ className, width, height }) {
               {`${/ios/i.test(userOs) ? 'iOS ' : `${capitalize(userOs)},`} `}
               {capitalize(userDevice)}
             </span>
+            {source.source && (
+              <>
+                <span className="mx-1 font-bold text-xl">&#183;</span>
+                <span
+                  className="truncate"
+                  style={{ maxWidth: 260 }}
+                  title={sourceTitle(source)}
+                >
+                  {sourceLabel(source)}
+                </span>
+              </>
+            )}
             <span className="mx-1 font-bold text-xl">&#183;</span>
             <Popover
               open={showMore ? true : undefined}

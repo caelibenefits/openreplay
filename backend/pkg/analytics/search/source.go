@@ -158,3 +158,18 @@ func applyCampaignNames(sessions []model.Session, names map[string]string) {
 		}
 	}
 }
+
+// SessionSource is one session's source, for the replay screen's header.
+type SessionSource struct {
+	Source     string `json:"source,omitempty"`
+	Campaign   string `json:"campaign,omitempty"`
+	CampaignId string `json:"campaignId,omitempty"`
+}
+
+// GetSessionSource runs the session list's lookup for a single session. Like
+// the list, a failed lookup is logged and returns an empty source.
+func (s *searchImpl) GetSessionSource(ctx context.Context, projectId int, sessionId uint64, startTs uint64) SessionSource {
+	sessions := []model.Session{{SessionId: strconv.FormatUint(sessionId, 10), StartTs: startTs}}
+	s.attachSources(ctx, projectId, sessions)
+	return SessionSource{Source: sessions[0].Source, Campaign: sessions[0].Campaign, CampaignId: sessions[0].CampaignId}
+}

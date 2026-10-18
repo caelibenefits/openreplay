@@ -29,6 +29,7 @@ func (e *handlersImpl) GetAll() []*api.Description {
 		{"/{projectId}/sessions/search/ids", "POST", e.getSessionIDs, []string{api.SESSION_REPLAY}, api.DoNotTrack},
 		{"/{projectId}/sessions/campaign-names", "GET", e.getCampaignNames, []string{api.SESSION_REPLAY}, api.DoNotTrack},
 		{"/{projectId}/sessions/campaign-names", "PUT", e.setCampaignNames, []string{api.SESSION_REPLAY}, "set_campaign_names"},
+		{"/{projectId}/sessions/{sessionId}/source", "GET", e.getSessionSource, []string{api.SESSION_REPLAY}, api.DoNotTrack},
 	}
 }
 
@@ -188,4 +189,28 @@ func (e *handlersImpl) setCampaignNames(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	e.responser.ResponseWithJSON(e.log, r.Context(), w, map[string]interface{}{"data": names}, startTime, r.URL.Path, bodySize)
+}
+
+func (e *handlersImpl) getSessionSource(w http.ResponseWriter, r *http.Request) {
+	startTime := time.Now()
+	projectID, err := api.GetPathParam(r, "projectId", api.ParseInt)
+	if err != nil {
+		e.responser.ResponseWithError(e.log, r.Context(), w, http.StatusBadRequest, err, startTime, r.URL.Path, 0)
+		return
+	}
+	sessionID, err := api.GetPathParam(r, "sessionId", api.ParseUint64)
+	if err != nil {
+		e.responser.ResponseWithError(e.log, r.Context(), w, http.StatusBadRequest, err, startTime, r.URL.Path, 0)
+		return
+	}
+	src, found, err := e.search.GetSessionSource(r.Context(), projectID, sessionID)
+	if err != nil {
+		e.responser.ResponseWithError(e.log, r.Context(), w, http.StatusInternalServerError, err, startTime, r.URL.Path, 0)
+		return
+	}
+	if !found {
+		e.responser.ResponseWithError(e.log, r.Context(), w, http.StatusNotFound, errors.New("session not found"), startTime, r.URL.Path, 0)
+		return
+	}
+	e.responser.ResponseWithJSON(e.log, r.Context(), w, map[string]interface{}{"data": src}, startTime, r.URL.Path, 0)
 }

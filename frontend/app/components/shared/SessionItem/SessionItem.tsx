@@ -22,6 +22,7 @@ import ErrorBars from './ErrorBars';
 import PlayLink from './PlayLink';
 import SessionMetaList from './SessionMetaList';
 import stl from './sessionItem.module.css';
+import { sourceLabel, sourceTitle } from 'App/utils/sessionSource';
 
 const ASSIST_ROUTE = assistRoute();
 const ASSIST_LIVE_SESSION = liveSession();
@@ -353,13 +354,9 @@ function SessionItem(props: RouteComponentProps & Props) {
                 {source && (
                   <div
                     className="text-sm text-neutral-500 truncate max-w-full"
-                    title={
-                      campaign
-                        ? `${source} · campaign ${campaignId ? `${campaign} (${campaignId})` : campaign}`
-                        : source
-                    }
+                    title={sourceTitle({ source, campaign, campaignId })}
                   >
-                    {campaign ? `${source} · ${campaign}` : source}
+                    {sourceLabel({ source, campaign })}
                   </div>
                 )}
                 {!slim && _metaList.length > 0 && (

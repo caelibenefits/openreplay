@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"openreplay/backend/pkg/analytics/model"
+	"openreplay/backend/pkg/db/postgres"
 )
 
 const (
@@ -157,4 +158,30 @@ func applyCampaignNames(sessions []model.Session, names map[string]string) {
 			sessions[i].Campaign = name
 		}
 	}
+}
+
+// SessionSource is one session's source, for the replay screen's header.
+type SessionSource struct {
+	Source     string `json:"source,omitempty"`
+	Campaign   string `json:"campaign,omitempty"`
+	CampaignId string `json:"campaignId,omitempty"`
+}
+
+// GetSessionSource runs the session list's lookup for a single session. The
+// start comes from Postgres, which has the session from its first request;
+// found is false when the project has no such session. Like the list, a
+// failed source lookup is logged and returns an empty source.
+func (s *searchImpl) GetSessionSource(ctx context.Context, projectId int, sessionId uint64) (SessionSource, bool, error) {
+	var startTs int64
+	err := s.pgConn.QueryRow(`SELECT start_ts FROM public.sessions WHERE session_id = $1 AND project_id = $2`,
+		sessionId, projectId).Scan(&startTs)
+	if postgres.IsNoRowsErr(err) {
+		return SessionSource{}, false, nil
+	}
+	if err != nil {
+		return SessionSource{}, false, err
+	}
+	sessions := []model.Session{{SessionId: strconv.FormatUint(sessionId, 10), StartTs: uint64(startTs)}}
+	s.attachSources(ctx, projectId, sessions)
+	return SessionSource{Source: sessions[0].Source, Campaign: sessions[0].Campaign, CampaignId: sessions[0].CampaignId}, true, nil
 }

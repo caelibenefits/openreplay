@@ -88,6 +88,12 @@ describe('APIClient URL Replacer Logic', () => {
       path: '/sessions/campaign-names',
       expectedUrl: 'https://example.com/v2/api/2/sessions/campaign-names',
     },
+    {
+      description: "Non-SaaS: a session's source goes to the v2 api with the site ID",
+      edp: 'https://example.com/api',
+      path: '/sessions/4065014380368490792/source',
+      expectedUrl: 'https://example.com/v2/api/2/sessions/4065014380368490792/source',
+    },
     // Cards endpoint
     {
       description: 'Cards endpoint with site ID',

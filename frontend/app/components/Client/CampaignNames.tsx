@@ -111,34 +111,39 @@ function CampaignNames() {
           )}
           {rows.length > 0 && (
             <div className="flex gap-2 text-sm font-medium text-neutral-500">
-              <div className="w-56">Campaign ID</div>
+              <div className="w-56 shrink-0">Campaign ID</div>
               <div className="flex-1">Name</div>
               <div className="w-8" />
             </div>
           )}
           {rows.map((r) => (
             <div key={r.key} className="flex gap-2 items-center">
-              <Input
-                className="w-56"
-                placeholder="24356000612"
-                value={r.campaignId}
-                status={
-                  dups.includes(r.campaignId.trim()) ||
-                  (incomplete.has(r.key) && !r.campaignId.trim())
-                    ? 'error'
-                    : undefined
-                }
-                disabled={saving}
-                onChange={(e) => update(r.key, 'campaignId', e.target.value)}
-              />
-              <Input
-                className="flex-1"
-                placeholder="Product Search"
-                status={incomplete.has(r.key) && !r.name.trim() ? 'error' : undefined}
-                value={r.name}
-                disabled={saving}
-                onChange={(e) => update(r.key, 'name', e.target.value)}
-              />
+              {/* Sized by wrappers: Tailwind's width classes sit in a CSS
+                  layer, so antd's unlayered width: 100% beats them on the
+                  Input itself and the Name box collapsed to nothing. */}
+              <div className="w-56 shrink-0">
+                <Input
+                  placeholder="24356000612"
+                  value={r.campaignId}
+                  status={
+                    dups.includes(r.campaignId.trim()) ||
+                    (incomplete.has(r.key) && !r.campaignId.trim())
+                      ? 'error'
+                      : undefined
+                  }
+                  disabled={saving}
+                  onChange={(e) => update(r.key, 'campaignId', e.target.value)}
+                />
+              </div>
+              <div className="flex-1 min-w-0">
+                <Input
+                  placeholder="Product Search"
+                  status={incomplete.has(r.key) && !r.name.trim() ? 'error' : undefined}
+                  value={r.name}
+                  disabled={saving}
+                  onChange={(e) => update(r.key, 'name', e.target.value)}
+                />
+              </div>
               <Button
                 type="text"
                 aria-label="Remove"

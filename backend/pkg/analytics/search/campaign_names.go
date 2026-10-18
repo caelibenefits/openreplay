@@ -6,9 +6,9 @@ package search
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
-	"sync"
 )
 
 // The table is ours, not upstream's, so it is created here rather than by the
@@ -31,23 +31,21 @@ type CampaignName struct {
 	Name       string `json:"name"`
 }
 
-var (
-	campaignTableMu    sync.Mutex
-	campaignTableReady bool
-)
+// ErrInvalidCampaignNames marks a list the caller must fix (a 400).
+var ErrInvalidCampaignNames = errors.New("invalid campaign names")
 
 // ensureCampaignTable creates the table on first use, and tries again on the
 // next call if that failed.
 func (s *searchImpl) ensureCampaignTable() error {
-	campaignTableMu.Lock()
-	defer campaignTableMu.Unlock()
-	if campaignTableReady {
+	s.campaignTableMu.Lock()
+	defer s.campaignTableMu.Unlock()
+	if s.campaignTableReady {
 		return nil
 	}
 	if err := s.pgConn.Exec(campaignNamesDDL); err != nil {
 		return err
 	}
-	campaignTableReady = true
+	s.campaignTableReady = true
 	return nil
 }
 
@@ -55,7 +53,7 @@ func (s *searchImpl) ensureCampaignTable() error {
 // rejects a list that is too long or repeats an ID.
 func cleanCampaignNames(in []CampaignName) ([]CampaignName, error) {
 	if len(in) > maxCampaignNames {
-		return nil, fmt.Errorf("at most %d campaign names", maxCampaignNames)
+		return nil, fmt.Errorf("%w: at most %d campaign names", ErrInvalidCampaignNames, maxCampaignNames)
 	}
 	out := make([]CampaignName, 0, len(in))
 	seen := make(map[string]bool, len(in))
@@ -64,11 +62,14 @@ func cleanCampaignNames(in []CampaignName) ([]CampaignName, error) {
 		if id == "" || name == "" {
 			continue
 		}
-		if len(id) > maxCampaignIDLen || len(name) > maxCampaignNameLen {
-			return nil, fmt.Errorf("campaign %q: ID and name must be at most %d characters", id, maxCampaignNameLen)
+		if len(id) > maxCampaignIDLen {
+			return nil, fmt.Errorf("%w: campaign ID %q is over %d characters", ErrInvalidCampaignNames, id, maxCampaignIDLen)
+		}
+		if len(name) > maxCampaignNameLen {
+			return nil, fmt.Errorf("%w: the name for %q is over %d characters", ErrInvalidCampaignNames, id, maxCampaignNameLen)
 		}
 		if seen[id] {
-			return nil, fmt.Errorf("campaign %q is listed twice", id)
+			return nil, fmt.Errorf("%w: campaign %q is listed twice", ErrInvalidCampaignNames, id)
 		}
 		seen[id] = true
 		out = append(out, CampaignName{CampaignId: id, Name: name})
@@ -97,7 +98,8 @@ func (s *searchImpl) GetCampaignNames(ctx context.Context, projectId int) ([]Cam
 	return out, rows.Err()
 }
 
-// SetCampaignNames replaces the project's whole list.
+// SetCampaignNames replaces the project's whole list and returns what it
+// wrote. A list the caller must fix returns ErrInvalidCampaignNames.
 func (s *searchImpl) SetCampaignNames(ctx context.Context, projectId int, names []CampaignName) ([]CampaignName, error) {
 	clean, err := cleanCampaignNames(names)
 	if err != nil {
@@ -124,7 +126,7 @@ func (s *searchImpl) SetCampaignNames(ctx context.Context, projectId int, names 
 	if err := tx.TxCommit(); err != nil {
 		return nil, err
 	}
-	return s.GetCampaignNames(ctx, projectId)
+	return clean, nil
 }
 
 // campaignNameMap returns the names set for the given campaign IDs.

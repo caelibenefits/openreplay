@@ -9,6 +9,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"openreplay/backend/pkg/analytics/charts"
@@ -36,6 +37,10 @@ type searchImpl struct {
 	Logger     logger.Logger
 	filterRefs []lexicon.FilterRef
 	projects   projects.Projects
+
+	// Caeli: campaign_names.go creates its table on first use.
+	campaignTableMu    sync.Mutex
+	campaignTableReady bool
 }
 
 func New(logger logger.Logger, chConn driver.Conn, pgConn pool.Pool, segments lexicon.Segments, projectsService projects.Projects) (Search, error) {

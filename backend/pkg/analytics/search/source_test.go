@@ -1,6 +1,7 @@
 package search
 
 import (
+	"errors"
 	"strings"
 	"testing"
 
@@ -109,13 +110,15 @@ func TestCleanCampaignNames(t *testing.T) {
 	if len(got) != 1 || got[0] != (CampaignName{"24356000612", "Product Search"}) {
 		t.Errorf("got %+v, want one trimmed row", got)
 	}
-	if _, err := cleanCampaignNames([]CampaignName{{"1", "a"}, {" 1", "b"}}); err == nil {
-		t.Error("a repeated ID was accepted")
-	}
-	if _, err := cleanCampaignNames([]CampaignName{{"1", strings.Repeat("x", maxCampaignNameLen+1)}}); err == nil {
-		t.Error("an over-long name was accepted")
-	}
-	if _, err := cleanCampaignNames(make([]CampaignName, maxCampaignNames+1)); err == nil {
-		t.Error("an over-long list was accepted")
+	for name, rows := range map[string][]CampaignName{
+		"a repeated ID":     {{"1", "a"}, {" 1", "b"}},
+		"an over-long ID":   {{strings.Repeat("9", maxCampaignIDLen+1), "a"}},
+		"an over-long name": {{"1", strings.Repeat("x", maxCampaignNameLen+1)}},
+		"an over-long list": make([]CampaignName, maxCampaignNames+1),
+	} {
+		// The handler answers 400 only for ErrInvalidCampaignNames.
+		if _, err := cleanCampaignNames(rows); !errors.Is(err, ErrInvalidCampaignNames) {
+			t.Errorf("%s: err = %v, want ErrInvalidCampaignNames", name, err)
+		}
 	}
 }

@@ -2,6 +2,7 @@ package search
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"time"
 
@@ -177,13 +178,13 @@ func (e *handlersImpl) setCampaignNames(w http.ResponseWriter, r *http.Request) 
 		e.responser.ResponseWithError(e.log, r.Context(), w, http.StatusBadRequest, err, startTime, r.URL.Path, bodySize)
 		return
 	}
-	if _, err := cleanCampaignNames(req.Names); err != nil {
-		e.responser.ResponseWithError(e.log, r.Context(), w, http.StatusBadRequest, err, startTime, r.URL.Path, bodySize)
-		return
-	}
 	names, err := e.search.SetCampaignNames(r.Context(), projectID, req.Names)
 	if err != nil {
-		e.responser.ResponseWithError(e.log, r.Context(), w, http.StatusInternalServerError, err, startTime, r.URL.Path, bodySize)
+		status := http.StatusInternalServerError
+		if errors.Is(err, ErrInvalidCampaignNames) {
+			status = http.StatusBadRequest
+		}
+		e.responser.ResponseWithError(e.log, r.Context(), w, status, err, startTime, r.URL.Path, bodySize)
 		return
 	}
 	e.responser.ResponseWithJSON(e.log, r.Context(), w, map[string]interface{}{"data": names}, startTime, r.URL.Path, bodySize)

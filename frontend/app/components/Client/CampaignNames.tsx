@@ -6,7 +6,7 @@ import { toast } from 'react-toastify';
 
 import { sessionService } from 'App/services';
 import type { CampaignName } from 'App/services/SessionService';
-import { duplicateIds } from 'App/utils/campaignNames';
+import { duplicateIds, incompleteRows } from 'App/utils/campaignNames';
 
 import PreferencesPage from './PreferencesPage';
 
@@ -16,7 +16,7 @@ import PreferencesPage from './PreferencesPage';
 
 type Row = CampaignName & { key: number };
 
-let nextKey = 0;
+let nextKey = 0; // unique row keys for React; only ever compared
 const toRows = (names: CampaignName[]): Row[] =>
   names.map((n) => ({ ...n, key: nextKey++ }));
 
@@ -48,6 +48,7 @@ function CampaignNames() {
   };
 
   const dups = duplicateIds(rows);
+  const incomplete = new Set(incompleteRows(rows).map((r) => r.key));
 
   const save = async () => {
     setSaving(true);
@@ -79,7 +80,7 @@ function CampaignNames() {
             size="small"
             onClick={save}
             loading={saving}
-            disabled={loading || !dirty || dups.length > 0}
+            disabled={loading || !dirty || dups.length > 0 || incomplete.size > 0}
           >
             Save
           </Button>
@@ -106,12 +107,18 @@ function CampaignNames() {
                 className="w-56"
                 placeholder="24356000612"
                 value={r.campaignId}
-                status={dups.includes(r.campaignId.trim()) ? 'error' : undefined}
+                status={
+                  dups.includes(r.campaignId.trim()) ||
+                  (incomplete.has(r.key) && !r.campaignId.trim())
+                    ? 'error'
+                    : undefined
+                }
                 onChange={(e) => update(r.key, 'campaignId', e.target.value)}
               />
               <Input
                 className="flex-1"
                 placeholder="Product Search"
+                status={incomplete.has(r.key) && !r.name.trim() ? 'error' : undefined}
                 value={r.name}
                 onChange={(e) => update(r.key, 'name', e.target.value)}
               />
@@ -123,6 +130,11 @@ function CampaignNames() {
               />
             </div>
           ))}
+          {incomplete.size > 0 && (
+            <div className="text-red-500 text-sm">
+              Each campaign needs both an ID and a name.
+            </div>
+          )}
           {dups.length > 0 && (
             <div className="text-red-500 text-sm">
               Listed twice: {dups.join(', ')}

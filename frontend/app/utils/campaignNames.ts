@@ -12,3 +12,10 @@ export function duplicateIds(rows: { campaignId: string }[]): string[] {
   });
   return [...dups];
 }
+
+/** Rows with an ID or a name but not both; the api would drop them. */
+export function incompleteRows<T extends { campaignId: string; name: string }>(
+  rows: T[],
+): T[] {
+  return rows.filter((r) => !r.campaignId.trim() !== !r.name.trim());
+}

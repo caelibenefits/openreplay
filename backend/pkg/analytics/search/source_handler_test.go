@@ -9,6 +9,7 @@ import (
 
 	"github.com/gorilla/mux"
 
+	"openreplay/backend/internal/config/common"
 	"openreplay/backend/pkg/logger"
 	"openreplay/backend/pkg/metrics/web"
 	"openreplay/backend/pkg/server/api"
@@ -38,8 +39,10 @@ func TestGetSessionSourceHandler(t *testing.T) {
 		return w
 	}
 
-	if w := call(""); w.Code != http.StatusBadRequest || fake.calls != 0 {
-		t.Fatalf("no startTs: status %d, calls %d; want 400 and no lookup", w.Code, fake.calls)
+	for _, q := range []string{"", "?startTs=abc", "?startTs=0"} {
+		if w := call(q); w.Code != http.StatusBadRequest || fake.calls != 0 {
+			t.Fatalf("%q: status %d, calls %d; want 400 and no lookup", q, w.Code, fake.calls)
+		}
 	}
 
 	w := call("?startTs=1760750000000")
@@ -57,5 +60,25 @@ func TestGetSessionSourceHandler(t *testing.T) {
 	}
 	if body.Data != (SessionSource{Source: SourceGoogleAds, Campaign: "Product Search", CampaignId: "24356000612"}) {
 		t.Fatalf("data = %+v", body.Data)
+	}
+}
+
+// The route as registered: path, method and param names reach the handler.
+func TestGetSessionSourceRoute(t *testing.T) {
+	fake := &fakeSourceSearch{}
+	h := &handlersImpl{log: logger.New(), responser: api.NewResponser(web.New("test_route")), search: fake}
+	router, err := api.NewRouter(logger.New(), &common.HTTP{}, api.NoPrefix, []api.Handlers{h}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	w := httptest.NewRecorder()
+	router.Get().ServeHTTP(w, httptest.NewRequest("GET", "/1/sessions/4065014380368490792/source?startTs=1760750000000", nil))
+	if w.Code != http.StatusOK || fake.calls != 1 || fake.sessionId != 4065014380368490792 || fake.projectId != 1 {
+		t.Fatalf("status %d, calls %d, project %d, session %d", w.Code, fake.calls, fake.projectId, fake.sessionId)
+	}
+	w = httptest.NewRecorder()
+	router.Get().ServeHTTP(w, httptest.NewRequest("POST", "/1/sessions/4065014380368490792/source?startTs=1760750000000", nil))
+	if w.Code != http.StatusMethodNotAllowed {
+		t.Fatalf("POST: status %d, want 405", w.Code)
 	}
 }

@@ -138,9 +138,16 @@ export default class SettingsService {
   getSessionSource = async (
     sessionId: string,
     startTs: number,
+    abortSignal?: AbortSignal,
   ): Promise<SessionSource> =>
     this.client
-      .get(`/sessions/${sessionId}/source`, { startTs })
+      .get(
+        `/sessions/${sessionId}/source`,
+        { startTs },
+        undefined,
+        undefined,
+        abortSignal,
+      )
       .then((r) => r.json())
       .then((j) => j.data || {});
 

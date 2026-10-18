@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"strconv"
 	"time"
 
 	config "openreplay/backend/internal/config/api"
@@ -205,9 +206,9 @@ func (e *handlersImpl) getSessionSource(w http.ResponseWriter, r *http.Request) 
 		e.responser.ResponseWithError(e.log, r.Context(), w, http.StatusBadRequest, err, startTime, r.URL.Path, 0)
 		return
 	}
-	startTs := api.GetQueryParam(r, "startTs", api.ParseUint64)
-	if startTs == 0 {
-		e.responser.ResponseWithError(e.log, r.Context(), w, http.StatusBadRequest, errors.New("startTs is required"), startTime, r.URL.Path, 0)
+	startTs, err := strconv.ParseUint(r.URL.Query().Get("startTs"), 10, 64)
+	if err != nil || startTs == 0 {
+		e.responser.ResponseWithError(e.log, r.Context(), w, http.StatusBadRequest, errors.New("startTs must be the session start in ms"), startTime, r.URL.Path, 0)
 		return
 	}
 	src := e.search.GetSessionSource(r.Context(), projectID, sessionID, startTs)

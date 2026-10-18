@@ -25,12 +25,17 @@ function CampaignNames() {
   const [loading, setLoading] = React.useState(true);
   const [saving, setSaving] = React.useState(false);
   const [dirty, setDirty] = React.useState(false);
+  // Save replaces the whole list, so it stays off until the list has loaded.
+  const [loadFailed, setLoadFailed] = React.useState(false);
 
   React.useEffect(() => {
     sessionService
       .getCampaignNames()
       .then((names) => setRows(toRows(names)))
-      .catch(() => toast.error('Could not load campaign names'))
+      .catch(() => {
+        setLoadFailed(true);
+        toast.error('Could not load campaign names');
+      })
       .finally(() => setLoading(false));
   }, []);
 
@@ -72,7 +77,7 @@ function CampaignNames() {
       help="The session list shows a campaign's name in place of its ID. The ID is the utm_campaign value, or Google Ads' campaign ID."
       actions={
         <>
-          <Button size="small" onClick={add} disabled={loading || saving}>
+          <Button size="small" onClick={add} disabled={loading || loadFailed || saving}>
             Add campaign
           </Button>
           <Button
@@ -80,14 +85,24 @@ function CampaignNames() {
             size="small"
             onClick={save}
             loading={saving}
-            disabled={loading || !dirty || dups.length > 0 || incomplete.size > 0}
+            disabled={
+              loading ||
+              loadFailed ||
+              !dirty ||
+              dups.length > 0 ||
+              incomplete.size > 0
+            }
           >
             Save
           </Button>
         </>
       }
     >
-      {loading ? null : (
+      {loading ? null : loadFailed ? (
+        <div className="text-red-500">
+          Could not load campaign names. Reload the page to try again.
+        </div>
+      ) : (
         <div className="flex flex-col gap-2 max-w-2xl">
           {rows.length === 0 && (
             <div className="text-neutral-500">

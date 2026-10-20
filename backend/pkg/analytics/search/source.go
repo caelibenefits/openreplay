@@ -126,7 +126,14 @@ func (s *searchImpl) attachSources(ctx context.Context, projectId int, sessions 
 	values.Add(1)
 	go func() {
 		defer values.Done()
-		s.attachValues(ctx, projectId, ids, sessions)
+		defer func() {
+			if r := recover(); r != nil {
+				s.Logger.Warn(ctx, "session values panic: %v", r)
+			}
+		}()
+		vctx, cancel := context.WithTimeout(ctx, valuesTimeout)
+		defer cancel()
+		s.attachValues(vctx, projectId, ids, sessions)
 	}()
 	defer values.Wait()
 	fromSec := int64(minTs/1000) - 60

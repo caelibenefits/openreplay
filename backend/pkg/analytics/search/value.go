@@ -11,10 +11,15 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	"openreplay/backend/pkg/analytics/charts"
 	"openreplay/backend/pkg/analytics/model"
 )
+
+// valuesTimeout bounds the value lookup, so a slow table never holds the list
+// or the replay header; past it the sessions go without a value.
+const valuesTimeout = 3 * time.Second
 
 type sessionValueRow struct {
 	SessionId string `ch:"session_id"`

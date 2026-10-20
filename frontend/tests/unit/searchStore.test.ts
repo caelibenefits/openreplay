@@ -183,11 +183,25 @@ describe('SearchStore class', () => {
     expect(duration.value).toEqual(["1000"]);
   });
 
+  // Caeli: "Interest N+" sends one interestValue >= N filter; "Any" sends none.
+  it('setMinInterest filters on the interest value', async () => {
+    store.setMinInterest(10);
+    await new Promise((r) => setTimeout(r, 0));
+    const call = mockSessionFetch.mock.calls.at(-1)?.[0] as any;
+    const f = call.filters.filter((x: any) => x.name === FilterKey.INTEREST_VALUE);
+    expect(f).toHaveLength(1);
+    expect(f[0]).toMatchObject({ operator: '>=', value: ['10'], isEvent: false, autoCaptured: false });
+    store.setMinInterest(0);
+    await new Promise((r) => setTimeout(r, 0));
+    const after = mockSessionFetch.mock.calls.at(-1)?.[0] as any;
+    expect(after.filters.some((x: any) => x.name === FilterKey.INTEREST_VALUE)).toBe(false);
+  });
+
   // Caeli: a toggle that narrows the list kept the page, so page 18 of the
   // wider list asked for an offset the narrower one did not reach and showed
   // "No sessions" (2026-10-13, query_log: OFFSET 170, 0 rows).
   it.each([
-    ['setMinEvents', (st: SearchStore) => st.setMinEvents(1)],
+    ['setMinInterest', (st: SearchStore) => st.setMinInterest(5)],
     ['setHideInternal', (st: SearchStore) => st.setHideInternal(true)],
     ['setHideBots', (st: SearchStore) => st.setHideBots(true)],
   ])('%s starts the list again at page 1', async (_name, toggle) => {

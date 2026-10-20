@@ -384,6 +384,33 @@ func TestBuildWhere_EventsCountIsASessionsColumn(t *testing.T) {
 	}
 }
 
+// caeli: "Interest >= n" keeps the sessions graded n or more, and orders.
+func TestBuildWhere_InterestIsASessionValueLookup(t *testing.T) {
+	f := model.Filter{Name: "interestValue", Operator: ">=", Value: []string{"5"}, DataType: "number"}
+	ev, flt, neg, sess := BuildWhere([]model.Filter{f}, "then", "e", "s")
+	if len(ev)+len(flt)+len(neg) != 0 {
+		t.Fatalf("still compiled as an event condition: %q %q %q", ev, flt, neg)
+	}
+	// The other builders run every filter through BuildEventConditions too.
+	if ev, _, misc := BuildEventConditions([]model.Filter{f}, BuildConditionsOptions{MainTableAlias: "e"}); len(ev)+len(misc) != 0 {
+		t.Fatalf("BuildEventConditions compiled it: %q %q", ev, misc)
+	}
+	want := "s.session_id IN (SELECT session_id FROM caeli.session_value FINAL WHERE value >= 5 OR ordered = 1)"
+	if len(sess) != 1 || sess[0] != want {
+		t.Fatalf("got %q, want [%s]", sess, want)
+	}
+	// Garbage, out-of-range values and other operators never reach SQL.
+	for _, bad := range []model.Filter{
+		{Name: "interestValue", Operator: ">=", Value: []string{"5) OR 1=1 --"}},
+		{Name: "interestValue", Operator: ">=", Value: []string{"300"}},
+		{Name: "interestValue", Operator: "<", Value: []string{"5"}},
+	} {
+		if ev, flt, _, sess := BuildWhere([]model.Filter{bad}, "then", "e", "s"); len(ev)+len(sess)+len(flt) != 0 {
+			t.Fatalf("%v produced %q %q %q", bad, ev, sess, flt)
+		}
+	}
+}
+
 // caeli: the table widget builds its own session conditions; a negative
 // metadata filter there must keep sessions without the value, like the list.
 func TestTableSessionConditions_NegativeMetadataKeepsMissingValues(t *testing.T) {

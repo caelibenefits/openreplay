@@ -48,3 +48,12 @@ describe('Session campaign name', () => {
     expect(s.campaignId).toBe('24356000612');
   });
 });
+
+// Caeli: the interest value rides the search response the same way.
+describe('Session interest', () => {
+  test('keeps the interest value from the search response', () => {
+    const interest = { value: 10, tier: '5 intent', ordered: true };
+    const s = new Session({ ...session.data, interest });
+    expect(s.interest).toEqual(interest);
+  });
+});

@@ -14,6 +14,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"openreplay/backend/pkg/analytics/model"
@@ -120,7 +121,14 @@ func (s *searchImpl) attachSources(ctx context.Context, projectId int, sessions 
 	if len(ids) == 0 {
 		return
 	}
-	s.attachValues(ctx, projectId, ids, sessions)
+	// Independent of the source lookup below; neither waits on the other.
+	var values sync.WaitGroup
+	values.Add(1)
+	go func() {
+		defer values.Done()
+		s.attachValues(ctx, projectId, ids, sessions)
+	}()
+	defer values.Wait()
 	fromSec := int64(minTs/1000) - 60
 	toSec := int64(maxTs/1000) + int64(entryWindow/time.Second)
 

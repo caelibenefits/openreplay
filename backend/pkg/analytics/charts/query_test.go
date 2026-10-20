@@ -384,7 +384,8 @@ func TestBuildWhere_EventsCountIsASessionsColumn(t *testing.T) {
 	}
 }
 
-// caeli: "Interest >= n" keeps the sessions graded n or more, and orders.
+// caeli: "Interest >= n" keeps the sessions graded n or more, and visitors' orders
+// (not the canaries', which order every day as "internal").
 func TestBuildWhere_InterestIsASessionValueLookup(t *testing.T) {
 	f := model.Filter{Name: "interestValue", Operator: ">=", Value: []string{"5"}, DataType: "number"}
 	ev, flt, neg, sess := BuildWhere([]model.Filter{f}, "then", "e", "s")
@@ -395,7 +396,7 @@ func TestBuildWhere_InterestIsASessionValueLookup(t *testing.T) {
 	if ev, _, misc := BuildEventConditions([]model.Filter{f}, BuildConditionsOptions{MainTableAlias: "e"}); len(ev)+len(misc) != 0 {
 		t.Fatalf("BuildEventConditions compiled it: %q %q", ev, misc)
 	}
-	want := "s.session_id IN (SELECT session_id FROM caeli.session_value FINAL WHERE value >= 5 OR ordered = 1)"
+	want := "s.session_id IN (SELECT session_id FROM caeli.session_value FINAL WHERE value >= 5 OR (ordered = 1 AND value IS NOT NULL))"
 	if len(sess) != 1 || sess[0] != want {
 		t.Fatalf("got %q, want [%s]", sess, want)
 	}

@@ -797,7 +797,7 @@ func interestCond(alias string, f model.Filter) string {
 	if err != nil {
 		return ""
 	}
-	return fmt.Sprintf("%s.session_id IN (SELECT session_id FROM %s FINAL WHERE value >= %d OR ordered = 1)",
+	return fmt.Sprintf("%s.session_id IN (SELECT session_id FROM %s FINAL WHERE value >= %d OR (ordered = 1 AND value IS NOT NULL))",
 		alias, InterestTable, n)
 }
 

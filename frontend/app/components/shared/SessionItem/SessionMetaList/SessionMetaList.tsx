@@ -10,6 +10,8 @@ interface Props {
   onMetaClick?: (meta: { name: string; value: string }) => void;
   horizontal?: boolean;
   valuesOnly?: boolean;
+  /** Caeli: the overflow as "+N" rather than an icon. */
+  countMore?: boolean;
 }
 
 export default function SessionMetaList(props: Props) {
@@ -19,6 +21,7 @@ export default function SessionMetaList(props: Props) {
     maxLength = 14,
     horizontal = false,
     valuesOnly = false,
+    countMore = false,
   } = props;
 
   return (
@@ -40,7 +43,7 @@ export default function SessionMetaList(props: Props) {
       ))}
 
       {metaList.length > maxLength && (
-        <MetaMoreButton list={metaList} maxLength={maxLength} />
+        <MetaMoreButton list={metaList} maxLength={maxLength} asCount={countMore} />
       )}
     </div>
   );

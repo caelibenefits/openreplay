@@ -7,9 +7,11 @@ import { useTranslation } from 'react-i18next';
 interface Props {
   list: any[];
   maxLength: number;
+  /** Caeli: show "+N" (the session list) instead of the icon. */
+  asCount?: boolean;
 }
 export default function MetaMoreButton(props: Props) {
-  const { list, maxLength } = props;
+  const { list, maxLength, asCount = false } = props;
   const { t } = useTranslation();
   return (
     <Popover
@@ -32,18 +34,24 @@ export default function MetaMoreButton(props: Props) {
       placement="bottom"
     >
       <div className="flex items-center">
-        <Button
-          type="text"
-          size="small"
-          className="text-sm text-neutral-400 px-0"
-        >
-          <Icon
-            name="metadata-more"
-            className="w-4 h-4"
-            color={'black'}
-            size={14}
-          />
-        </Button>
+        {asCount ? (
+          <span className="text-xs text-neutral-500 cursor-pointer px-1">
+            +{list.length - maxLength}
+          </span>
+        ) : (
+          <Button
+            type="text"
+            size="small"
+            className="text-sm text-neutral-400 px-0"
+          >
+            <Icon
+              name="metadata-more"
+              className="w-4 h-4"
+              color={'black'}
+              size={14}
+            />
+          </Button>
+        )}
       </div>
     </Popover>
   );

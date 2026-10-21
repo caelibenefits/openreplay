@@ -21,13 +21,10 @@ import Counter from './Counter';
 import ErrorBars from './ErrorBars';
 import PlayLink from './PlayLink';
 import SessionMetaList from './SessionMetaList';
+import SourceInterestLine from './SourceInterestLine';
 import stl from './sessionItem.module.css';
-import { sourceLabel, sourceTitle } from 'App/utils/sessionSource';
-import {
-  interestLabel,
-  interestTitle,
-  type SessionInterest,
-} from 'App/utils/sessionInterest';
+import { chipsThatFit, visibleMeta } from 'App/utils/sessionMeta';
+import { type SessionInterest } from 'App/utils/sessionInterest';
 
 const ASSIST_ROUTE = assistRoute();
 const ASSIST_LIVE_SESSION = liveSession();
@@ -200,6 +197,11 @@ function SessionItem(props: RouteComponentProps & Props) {
         value: metadata[key],
       }));
   }, [metadata]);
+  // Caeli: the chip row under the tile, without what the tile already says.
+  const chips = useMemo(
+    () => visibleMeta(_metaList, [userId, userAnonymousId, userDisplayName]),
+    [_metaList, userId, userAnonymousId, userDisplayName],
+  );
 
   const handleHover = useCallback(async () => {
     if (prefetchState !== PREFETCH_STATE.none || live || isAssist || isMobile)
@@ -307,7 +309,8 @@ function SessionItem(props: RouteComponentProps & Props) {
           stl.sessionItem,
           noHover ? '' : stl.hoverable,
           'flex flex-col',
-          slim ? 'px-4 py-2 text-sm' : 'p-4',
+          // Caeli: 12px tiles, as LogRocket's list (2026-10-21).
+          slim ? 'px-4 py-2 text-sm' : 'px-4 py-3 text-xs',
           noWrap ? 'px-0! py-2' : '',
         )}
         id="session-item"
@@ -347,7 +350,7 @@ function SessionItem(props: RouteComponentProps & Props) {
                             !disableUser && hasUserId && !isDisabled,
                           'color-gray-medium': disableUser || !hasUserId,
                         },
-                        slim ? 'text-base' : 'text-lg',
+                        slim ? 'text-base' : 'text-sm',
                       )}
                       onClick={handleUserClick}
                     >
@@ -359,32 +362,12 @@ function SessionItem(props: RouteComponentProps & Props) {
                     </div>
                   </div>
                 </div>
-                {source && (
-                  <div
-                    className="text-sm text-neutral-500 truncate max-w-full"
-                    title={sourceTitle({ source, campaign, campaignId })}
-                  >
-                    {sourceLabel({ source, campaign })}
-                  </div>
-                )}
-                {interest && (
-                  <div
-                    className="text-sm text-neutral-500 truncate max-w-full"
-                    title={interestTitle(interest)}
-                  >
-                    {interestLabel(interest)}
-                  </div>
-                )}
-                {!slim && _metaList.length > 0 && (
-                  <SessionMetaList
-                    onMetaClick={disableUser ? () => null : onMetaClick}
-                    // Caeli: every value, no key labels (key on hover), so
-                    // no key decides which ones fit (a pay_id hid surface).
-                    valuesOnly
-                    maxLength={_metaList.length}
-                    metaList={_metaList}
-                  />
-                )}
+                <SourceInterestLine
+                  source={source}
+                  campaign={campaign}
+                  campaignId={campaignId}
+                  interest={interest}
+                />
               </div>
             )}
             <div
@@ -407,7 +390,7 @@ function SessionItem(props: RouteComponentProps & Props) {
                   />
                 </Tooltip>
               </div>
-              <div className="flex items-center md:text-sm text-neutral-500">
+              <div className="flex items-center text-neutral-500">
                 {!isAssist && (
                   <>
                     <div className="">
@@ -444,7 +427,7 @@ function SessionItem(props: RouteComponentProps & Props) {
                   showLabel={true}
                 />
               </div>
-              <div className="flex items-center text-sm text-neutral-500">
+              <div className="flex items-center text-neutral-500">
                 {userBrowser && (
                   <span className="capitalize" style={{ maxWidth: '70px' }}>
                     <TextEllipsis
@@ -544,6 +527,20 @@ function SessionItem(props: RouteComponentProps & Props) {
             </div>
           </div>
         </div>
+        {isSessions && !slim && !compact && chips.length > 0 && (
+          // Caeli: metadata as one row under the whole tile (the session
+          // list only; widgets and side panels keep no chip row); what does
+          // not fit goes behind "+N", and the row never overflows the tile.
+          <SessionMetaList
+            className="mt-2 overflow-hidden"
+            horizontal
+            countMore
+            onMetaClick={disableUser ? () => null : onMetaClick}
+            valuesOnly
+            maxLength={chipsThatFit(chips)}
+            metaList={chips}
+          />
+        )}
       </div>
     </Tooltip>
   );

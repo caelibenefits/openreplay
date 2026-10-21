@@ -18,7 +18,7 @@ export default function MetaItem(props: Props) {
       <Tooltip title={`${label}: ${value}`} mouseEnterDelay={0.3}>
         <div
           className={cn(
-            'text-sm inline-flex items-center px-2 py-0 rounded-lg bg-white border border-gray-light overflow-hidden max-w-[260px] text-neutral-600',
+            'text-xs inline-flex items-center px-2 py-0 rounded-lg bg-white border border-gray-light overflow-hidden max-w-[220px] shrink-0 text-neutral-600',
             className,
           )}
         >

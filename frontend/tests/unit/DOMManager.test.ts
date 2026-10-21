@@ -205,6 +205,10 @@ describe('extension asset URLs', () => {
     expect(extensionAssetUrl('https://www.getcaeli.com/assets/a.css')).toBeNull();
     expect(extensionAssetUrl('safari-web-extension://id/popup.html')).toBeNull();
     expect(extensionAssetUrl('safari-web-extension://id/assets/../secret')).toBeNull();
+    // A dot name would normalise out of /ext-assets/.
+    expect(extensionAssetUrl('safari-web-extension://id/assets/..')).toBeNull();
+    expect(extensionAssetUrl('safari-web-extension://id/assets/.')).toBeNull();
+    expect(extensionAssetUrl('safari-web-extension://id/assets/.hidden')).toBeNull();
     configureExtensionAssets(null);
     expect(extensionAssetUrl(css)).toBeNull();
   });

@@ -8,7 +8,7 @@
  * player loads the copy instead.
  */
 const EXTENSION_ASSET =
-  /^(?:safari-web-extension|chrome-extension|moz-extension):\/\/[^/]+\/assets\/([A-Za-z0-9._-]+)$/i;
+  /^(?:safari-web-extension|chrome-extension|moz-extension):\/\/[^/]+\/assets\/([A-Za-z0-9_-][A-Za-z0-9._-]*)$/i;
 
 let base: string | null = null;
 

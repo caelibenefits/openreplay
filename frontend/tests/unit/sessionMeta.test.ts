@@ -35,8 +35,11 @@ describe('session list metadata chips', () => {
 
   it('fits chips to one line and leaves the rest to "+N"', () => {
     const list = [chip('ip', '98.37.80.7'), chip('pay', 'pay_ed223af39ea2cd48455a7af9'), chip('surface', 'pay')];
-    expect(chipsThatFit(list, 90)).toBe(3);
+    expect(chipsThatFit(list, 80)).toBe(3);
     expect(chipsThatFit(list, 20)).toBe(1);
+    // A long value counts at its truncated width, not its full length.
+    const long = [chip('a', 'x'.repeat(200)), chip('b', 'y'), chip('c', 'z')];
+    expect(chipsThatFit(long, 80)).toBe(3);
     expect(chipsThatFit([chip('x', 'a'.repeat(200))], 90)).toBe(1); // one always shows
     expect(chipsThatFit([], 90)).toBe(0);
   });

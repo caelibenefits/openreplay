@@ -527,11 +527,12 @@ function SessionItem(props: RouteComponentProps & Props) {
             </div>
           </div>
         </div>
-        {!slim && !compact && chips.length > 0 && (
-          // Caeli: metadata as one row under the whole tile; what does not
-          // fit goes behind "+N".
+        {isSessions && !slim && !compact && chips.length > 0 && (
+          // Caeli: metadata as one row under the whole tile (the session
+          // list only; widgets and side panels keep no chip row); what does
+          // not fit goes behind "+N", and the row never overflows the tile.
           <SessionMetaList
-            className="mt-2"
+            className="mt-2 overflow-hidden"
             horizontal
             countMore
             onMetaClick={disableUser ? () => null : onMetaClick}

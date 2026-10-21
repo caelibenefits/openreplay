@@ -36,7 +36,11 @@ const hostDeferDelay = 250 * time.Millisecond
 // A content-hashed build asset can 404 before its deploy lands: a session on a
 // not-yet-deployed build references it first. Treated as permanent, that one
 // 404 left the asset uncached for every later session keyed to the same day.
-const buildAssetRetryDelay = 5 * time.Minute
+// Fixed, not configured: it covers a deploy's lag, ~20 minutes in all.
+const (
+	buildAssetRetryDelay = 5 * time.Minute
+	buildAssetRetries    = 4
+)
 
 type cacher struct {
 	log            logger.Logger
@@ -58,6 +62,7 @@ type cacher struct {
 	hashKeys       bool
 	resolver       *resolver.Resolver
 	gzipAssets     bool
+	buildRetries   int
 	samplerDone    chan struct{}
 }
 
@@ -144,6 +149,7 @@ func NewCacher(log logger.Logger, cfg *config.Config, store objectstorage.Object
 		hashKeys:       cfg.KeyScheme == assets.KeySchemeHash,
 		resolver:       urlResolver,
 		gzipAssets:     cfg.AssetsCompression == config.CompressionGzip,
+		buildRetries:   buildAssetRetries,
 	}
 	c.workers = NewPool(cfg.AssetsWorkerCount, cfg.AssetsQueueSize, c.CacheFile)
 	c.scheduler = newScheduler(cfg.AssetsRetryHeapLimit, c.workers.tryAddTask, func(n int) {
@@ -206,7 +212,7 @@ func (c *cacher) cacheURL(t *Task) {
 		if isRetryableStatus(res.StatusCode) {
 			c.retry(ctx, t, c.retryAfterDelay(res), reason, cause)
 		} else if res.StatusCode == http.StatusNotFound && isBuildAsset(t.requestURL) {
-			c.retry(ctx, t, buildAssetRetryDelay, reason, cause)
+			c.retryNotFound(ctx, t, reason, cause)
 		} else {
 			c.permanent(ctx, t, reason, cause)
 		}
@@ -309,17 +315,37 @@ func (c *cacher) cacheURL(t *Task) {
 func (c *cacher) retry(ctx context.Context, t *Task, explicitDelay time.Duration, reason string, cause error) {
 	t.attempt++
 	if t.attempt >= c.maxAttempts {
-		// final try: drop, record, and evict the dedup entry so a future asset can re-trigger the download.
-		c.timeoutMap.addFor(t.cachePath, c.failureTTL)
-		c.metrics.IncreaseTerminalFailures(reason)
-		c.metrics.IncreaseTasks(metrics.TaskTerminal)
-		c.log.Error(ctx, "Error while caching (terminal, attempts=%d, reason=%s): %s", t.attempt, reason, errors.Wrap(cause, t.urlContext))
+		c.terminal(ctx, t, t.attempt, reason, cause)
 		return
 	}
 	delay := explicitDelay
 	if delay <= 0 {
 		delay = c.backoff(t.attempt)
 	}
+	c.reschedule(ctx, t, delay, reason, cause)
+}
+
+// retryNotFound retries a build asset's 404 on its own budget, so a deploy's
+// lag does not spend the attempts a later 5xx on the same URL would need.
+func (c *cacher) retryNotFound(ctx context.Context, t *Task, reason string, cause error) {
+	t.notFound++
+	if t.notFound >= c.buildRetries {
+		c.terminal(ctx, t, t.notFound, reason, cause)
+		return
+	}
+	c.reschedule(ctx, t, buildAssetRetryDelay, reason, cause)
+}
+
+// terminal gives up on a task and evicts its dedup entry after failureTTL, so
+// a future session can re-trigger the download.
+func (c *cacher) terminal(ctx context.Context, t *Task, attempts int, reason string, cause error) {
+	c.timeoutMap.addFor(t.cachePath, c.failureTTL)
+	c.metrics.IncreaseTerminalFailures(reason)
+	c.metrics.IncreaseTasks(metrics.TaskTerminal)
+	c.log.Error(ctx, "Error while caching (terminal, attempts=%d, reason=%s): %s", attempts, reason, errors.Wrap(cause, t.urlContext))
+}
+
+func (c *cacher) reschedule(ctx context.Context, t *Task, delay time.Duration, reason string, cause error) {
 	if c.scheduler.schedule(t, time.Now().Add(delay)) {
 		c.metrics.IncreaseRetries(reason)
 	} else {
@@ -386,7 +412,7 @@ func isRetryableStatus(code int) bool {
 // fetch of the same URL returns the same bytes once the deploy has landed.
 func isBuildAsset(rawURL string) bool {
 	u, err := url.Parse(rawURL)
-	return err == nil && strings.Contains(u.Path, "/_next/static/")
+	return err == nil && strings.HasPrefix(u.Path, "/_next/static/")
 }
 
 func parseRetryAfter(h string) (time.Duration, bool) {

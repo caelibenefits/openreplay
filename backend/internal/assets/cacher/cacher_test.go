@@ -99,7 +99,7 @@ func TestABuildAssetThatStays404GivesUpAndCanBeTriedAgain(t *testing.T) {
 	c := newTestCacher(t)
 
 	task := &Task{requestURL: srv.URL + "/_next/static/chunks/gone.css", host: "127.0.0.1",
-		cachePath: "/gone.20", urlContext: "test", attempt: c.maxAttempts - 1}
+		cachePath: "/gone.20", urlContext: "test", notFound: c.buildRetries - 1}
 	c.timeoutMap.claim(task.cachePath)
 	c.cacheURL(task)
 	if n, _ := scheduled(c); n != 0 {
@@ -114,11 +114,50 @@ func TestABuildAssetThatStays404GivesUpAndCanBeTriedAgain(t *testing.T) {
 	}
 }
 
+func TestABuildAsset404DoesNotSpendTheStatusRetryBudget(t *testing.T) {
+	srv := httptest.NewServer(http.NotFoundHandler())
+	defer srv.Close()
+	c := newTestCacher(t)
+
+	task := &Task{requestURL: srv.URL + "/_next/static/chunks/a.css", host: "127.0.0.1",
+		cachePath: "/a.20", urlContext: "test", attempt: c.maxAttempts - 1}
+	c.cacheURL(task)
+	if n, _ := scheduled(c); n != 1 || task.attempt != c.maxAttempts-1 {
+		t.Fatalf("404 with the status budget spent: %d retries scheduled, attempt %d; want 1 and %d",
+			n, task.attempt, c.maxAttempts-1)
+	}
+}
+
+func TestCacheURLFreesABuildAssetsDedupWhenItStays404(t *testing.T) {
+	srv := httptest.NewServer(http.NotFoundHandler())
+	defer srv.Close()
+	c := newTestCacher(t)
+	c.buildRetries = 1 // give up on the first 404, so the test needn't wait 5 minutes
+
+	raw := srv.URL + "/_next/static/chunks/gone.css"
+	c.CacheURL(1, raw)
+	key := c.rewriter.CachePathForAssets(1, raw)
+	deadline := time.Now().Add(5 * time.Second)
+	for {
+		c.timeoutMap.mx.RLock()
+		exp, ok := c.timeoutMap.m[key]
+		c.timeoutMap.mx.RUnlock()
+		if ok && !exp.After(time.Now().Add(c.failureTTL+time.Minute)) {
+			return
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("dedup entry for %s still held until %s, want within %s", key, time.Until(exp), c.failureTTL)
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+}
+
 func TestIsBuildAsset(t *testing.T) {
 	for raw, want := range map[string]bool{
 		"https://www.getcaeli.com/_next/static/chunks/a.css":         true,
 		"https://www.getcaeli.com/_next/static/media/f.p.woff2":      true,
 		"https://www.getcaeli.com/static/a.css":                      false,
+		"https://cdn.example/proxy/_next/static/chunks/a.css":        false,
 		"https://cdn.example/a.css?from=/_next/static/chunks/a.css":  false,
 		"https://eurekaergonomic.com/cdn/shop/t/238/assets/base.css": false,
 	} {

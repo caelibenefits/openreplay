@@ -13,6 +13,7 @@ type Task struct {
 	isJS       bool
 	cachePath  string
 	attempt    int
+	notFound   int // build-asset 404s, counted apart from attempt
 }
 
 type WorkerPool struct {

@@ -1,6 +1,6 @@
 package search
 
-// Caeli: each listed session's interest value, the 0-30 the ad upload sends
+// Caeli: each listed session's interest value, the value (0 and up) the ad upload sends
 // for a visit, written per www session by infra's cron/scripts/session-value.py
 // into caeli.session_value on this ClickHouse (charts.InterestTable). A session
 // with no row is not graded: not a www session, or newer than the job's last

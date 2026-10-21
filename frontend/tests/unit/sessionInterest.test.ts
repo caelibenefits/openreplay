@@ -6,8 +6,10 @@ describe('session interest text', () => {
   test('a graded visit shows its value', () => {
     expect(interestLabel({ value: 10, tier: '5 intent' })).toBe('Interest 10');
     expect(interestTitle({ value: 10, tier: '5 intent' })).toContain(
-      'Interest value 10 of 30',
+      'Interest value 10 (its highest action',
     );
+    // Values aggregate a visit's actions (SCRUM-1925): no fixed ceiling.
+    expect(interestTitle({ value: 51, tier: '5 intent' })).not.toMatch(/ of \d/);
     expect(interestTitle({ value: 10, tier: '5 intent' })).toContain(
       '(intent)',
     );

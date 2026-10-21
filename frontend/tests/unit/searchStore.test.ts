@@ -197,6 +197,20 @@ describe('SearchStore class', () => {
     expect(after.filters.some((x: any) => x.name === FilterKey.INTEREST_VALUE)).toBe(false);
   });
 
+  // Caeli: Bots hidden also drops what the grader called not a visitor
+  // (Huawei Cloud HK crawlers pass as plain Chrome, 2026-10-21); Bots shown
+  // sends nothing.
+  it('setHideBots hides sessions graded as not a visitor', async () => {
+    store.setHideBots(true);
+    await new Promise((r) => setTimeout(r, 0));
+    const on = mockSessionFetch.mock.calls.at(-1)?.[0] as any;
+    expect(on.filters.filter((x: any) => x.name === FilterKey.HIDE_NOT_VISITORS)).toHaveLength(1);
+    store.setHideBots(false);
+    await new Promise((r) => setTimeout(r, 0));
+    const off = mockSessionFetch.mock.calls.at(-1)?.[0] as any;
+    expect(off.filters.some((x: any) => x.name === FilterKey.HIDE_NOT_VISITORS)).toBe(false);
+  });
+
   // Caeli: the steps are totals since values aggregate a visit's actions
   // (SCRUM-1925). A remembered step that is no longer offered (2+ was one)
   // reads as Any rather than filtering on a value the menu cannot show.

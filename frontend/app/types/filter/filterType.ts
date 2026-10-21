@@ -245,6 +245,8 @@ export enum FilterKey {
   EVENTS_COUNT = 'eventsCount',
   // Caeli: a session's interest value (caeli.session_value), never in the catalog.
   INTEREST_VALUE = 'interestValue',
+  // Caeli: hide sessions the grader marked "not a visitor" (Bots toggle).
+  HIDE_NOT_VISITORS = 'hideNotVisitors',
   UTM_SOURCE = 'utmSource',
   UTM_MEDIUM = 'utmMedium',
   UTM_CAMPAIGN = 'utmCampaign',

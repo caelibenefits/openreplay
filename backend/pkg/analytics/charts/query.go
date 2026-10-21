@@ -773,7 +773,7 @@ func eventsCountCond(alias string, f model.Filter) string {
 	return fmt.Sprintf("%s.events_count %s %d", alias, op, n)
 }
 
-// caeli: a session's interest value (0-30, the ad upload's visit value) is
+// caeli: a session's interest value (0 and up, the ad upload's visit value) is
 // written per session by infra's session-value.py to caeli.session_value on
 // this ClickHouse. "Interest >= n" keeps the sessions graded n or more, and
 // every session that reached an order, which the value leaves to Purchase. A

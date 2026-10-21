@@ -1,6 +1,6 @@
 // Caeli: how a session's interest value reads, in the session list and the
 // replay header. infra's session-value.py grades each www session with the
-// value the ad upload sends (0-30); the api attaches it (search/value.go).
+// value the ad upload sends (0 and up); the api attaches it (search/value.go).
 
 export interface SessionInterest {
   /** null: not a visitor (our team, a crawler, a bot farm) */
@@ -28,7 +28,7 @@ export const interestTitle = (i?: SessionInterest | null) => {
   if (!i) return '';
   if (i.value === null) return `Not counted as a visitor: ${i.tier}`;
   const parts = [
-    `Interest value ${i.value} of 30, the value sent to the ad platforms for an ad visit (${i.tier.replace(/^\d /, '')})`,
+    `Interest value ${i.value} (its highest action plus points for each further one), the value sent to the ad platforms for an ad visit (${i.tier.replace(/^\d /, '')})`,
   ];
   if (i.ordered)
     parts.push('It reached an order, which the ads get as a purchase');

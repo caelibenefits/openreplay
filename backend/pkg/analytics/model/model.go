@@ -163,6 +163,15 @@ func ValidateFilterFields(sl validator.StructLevel) {
 	}
 }
 
+// SessionInterest is a session's interest value (caeli.session_value).
+// Value is nil for "not a visitor"; Provisional until the session is 2h old.
+type SessionInterest struct {
+	Value       *uint8 `json:"value"`
+	Tier        string `json:"tier"`
+	Ordered     bool   `json:"ordered,omitempty"`
+	Provisional bool   `json:"provisional,omitempty"`
+}
+
 type Session struct {
 	Duration              uint32             `json:"duration" ch:"duration"`
 	ErrorsCount           uint16             `json:"errorsCount" ch:"errors_count"`
@@ -190,19 +199,21 @@ type Session struct {
 	TotalNumberOfSessions uint64             `json:"-" ch:"total_number_of_sessions"`
 	Metadata              map[string]*string `json:"metadata" ch:"metadata"`
 	// Caeli: from the entry URL, set after the query (search/source.go).
-	Source     string  `json:"source,omitempty" ch:"-"`
-	Campaign   string  `json:"campaign,omitempty" ch:"-"`
-	CampaignId string  `json:"campaignId,omitempty" ch:"-"`
-	Metadata1  *string `json:"-" ch:"metadata_1"`
-	Metadata2  *string `json:"-" ch:"metadata_2"`
-	Metadata3  *string `json:"-" ch:"metadata_3"`
-	Metadata4  *string `json:"-" ch:"metadata_4"`
-	Metadata5  *string `json:"-" ch:"metadata_5"`
-	Metadata6  *string `json:"-" ch:"metadata_6"`
-	Metadata7  *string `json:"-" ch:"metadata_7"`
-	Metadata8  *string `json:"-" ch:"metadata_8"`
-	Metadata9  *string `json:"-" ch:"metadata_9"`
-	Metadata10 *string `json:"-" ch:"metadata_10"`
+	Source     string `json:"source,omitempty" ch:"-"`
+	Campaign   string `json:"campaign,omitempty" ch:"-"`
+	CampaignId string `json:"campaignId,omitempty" ch:"-"`
+	// Caeli: the interest value, set after the query (search/value.go).
+	Interest   *SessionInterest `json:"interest,omitempty" ch:"-"`
+	Metadata1  *string          `json:"-" ch:"metadata_1"`
+	Metadata2  *string          `json:"-" ch:"metadata_2"`
+	Metadata3  *string          `json:"-" ch:"metadata_3"`
+	Metadata4  *string          `json:"-" ch:"metadata_4"`
+	Metadata5  *string          `json:"-" ch:"metadata_5"`
+	Metadata6  *string          `json:"-" ch:"metadata_6"`
+	Metadata7  *string          `json:"-" ch:"metadata_7"`
+	Metadata8  *string          `json:"-" ch:"metadata_8"`
+	Metadata9  *string          `json:"-" ch:"metadata_9"`
+	Metadata10 *string          `json:"-" ch:"metadata_10"`
 }
 
 type SessionsSearchRequest struct {

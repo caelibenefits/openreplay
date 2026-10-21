@@ -1,3 +1,4 @@
+import type { SessionInterest } from 'App/utils/sessionInterest';
 import { Duration } from 'luxon';
 import { toJS } from 'mobx';
 
@@ -131,6 +132,8 @@ export interface ISession {
   campaign?: string;
   // set when campaign is a name from Preferences > Campaign Names
   campaignId?: string;
+  // Caeli: the interest value (api search/value.go); absent when not graded
+  interest?: SessionInterest;
   userDeviceHeapSize?: number;
   userDeviceMemorySize?: number;
   errors?: SessionError[];
@@ -279,6 +282,8 @@ export default class Session {
   campaign: ISession['campaign'];
 
   campaignId: ISession['campaignId'];
+
+  interest: ISession['interest'];
 
   userDeviceHeapSize: ISession['userDeviceHeapSize'];
 

@@ -23,6 +23,11 @@ import PlayLink from './PlayLink';
 import SessionMetaList from './SessionMetaList';
 import stl from './sessionItem.module.css';
 import { sourceLabel, sourceTitle } from 'App/utils/sessionSource';
+import {
+  interestLabel,
+  interestTitle,
+  type SessionInterest,
+} from 'App/utils/sessionInterest';
 
 const ASSIST_ROUTE = assistRoute();
 const ASSIST_LIVE_SESSION = liveSession();
@@ -55,6 +60,8 @@ interface Props {
     source?: string;
     campaign?: string;
     campaignId?: string;
+    // Caeli: the interest value (api search/value.go)
+    interest?: SessionInterest;
     issueTypes: [];
     active: boolean;
     isCallActive?: boolean;
@@ -142,6 +149,7 @@ function SessionItem(props: RouteComponentProps & Props) {
     source,
     campaign,
     campaignId,
+    interest,
     issueTypes,
     active,
     platform,
@@ -357,6 +365,14 @@ function SessionItem(props: RouteComponentProps & Props) {
                     title={sourceTitle({ source, campaign, campaignId })}
                   >
                     {sourceLabel({ source, campaign })}
+                  </div>
+                )}
+                {interest && (
+                  <div
+                    className="text-sm text-neutral-500 truncate max-w-full"
+                    title={interestTitle(interest)}
+                  >
+                    {interestLabel(interest)}
                   </div>
                 )}
                 {!slim && _metaList.length > 0 && (

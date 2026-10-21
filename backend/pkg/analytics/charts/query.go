@@ -209,7 +209,7 @@ func BuildEventConditions(filters []model.Filter, option BuildConditionsOptions)
 		if f.AutoCaptured && !f.IsEvent {
 			f.Name = CamelToSnake(f.Name)
 		}
-		if f.Name == string(FilterDuration) || isEventsCountFilter(f) {
+		if f.Name == string(FilterDuration) || isEventsCountFilter(f) || isInterestFilter(f) {
 			continue
 		}
 		conds, nameCondition := addFilter(f, opts, f.IsEvent)
@@ -718,6 +718,10 @@ func BuildDurationWhere(filters []model.Filter, tableAlias ...string) ([]string,
 			if c := eventsCountCond(alias, f); c != "" {
 				conds = append(conds, c)
 			}
+		} else if isInterestFilter(f) {
+			if c := interestCond(alias, f); c != "" {
+				conds = append(conds, c)
+			}
 		} else if string(f.Name) == "duration" && f.AutoCaptured {
 			v := f.Value
 			if len(v) == 1 {
@@ -767,6 +771,34 @@ func eventsCountCond(alias string, f model.Filter) string {
 		return ""
 	}
 	return fmt.Sprintf("%s.events_count %s %d", alias, op, n)
+}
+
+// caeli: a session's interest value (0-30, the ad upload's visit value) is
+// written per session by infra's session-value.py to caeli.session_value on
+// this ClickHouse. "Interest >= n" keeps the sessions graded n or more, and
+// every session that reached an order, which the value leaves to Purchase. A
+// session not graded yet (the job runs every 15 minutes) is not listed.
+const InterestTable = "caeli.session_value"
+
+func isInterestFilter(f model.Filter) bool {
+	return !f.IsEvent && (f.Name == "interestValue" || f.Name == "interest_value")
+}
+
+func interestCond(alias string, f model.Filter) string {
+	switch f.Operator {
+	case ">=", "gte", "greaterThanOrEqual":
+	default:
+		return ""
+	}
+	if len(f.Value) == 0 {
+		return ""
+	}
+	n, err := strconv.ParseUint(strings.TrimSpace(f.Value[0]), 10, 8)
+	if err != nil {
+		return ""
+	}
+	return fmt.Sprintf("%s.session_id IN (SELECT session_id FROM %s FINAL WHERE value >= %d OR (ordered = 1 AND value IS NOT NULL))",
+		alias, InterestTable, n)
 }
 
 // buildLocationConditions extracts the url_path properties of LOCATION filters

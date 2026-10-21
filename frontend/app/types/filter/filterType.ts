@@ -243,6 +243,8 @@ export enum FilterKey {
   USERID = 'userId',
 
   EVENTS_COUNT = 'eventsCount',
+  // Caeli: a session's interest value (caeli.session_value), never in the catalog.
+  INTEREST_VALUE = 'interestValue',
   UTM_SOURCE = 'utmSource',
   UTM_MEDIUM = 'utmMedium',
   UTM_CAMPAIGN = 'utmCampaign',

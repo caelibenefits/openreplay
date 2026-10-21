@@ -50,15 +50,27 @@ export const BOT_BROWSERS = [
 const MAX_FILTER_VALUES = 10;
 const HIDE_BOTS_KEY = 'caeli_hide_bots';
 const HIDE_INTERNAL_KEY = 'caeli_hide_internal';
-const MIN_EVENTS_KEY = 'caeli_min_events';
+const MIN_INTEREST_KEY = 'caeli_min_interest';
 // Caeli: how long a search waits for the filter catalog before going without it.
 export const CATALOG_WAIT_MS = 4000;
-/** "More than N events"; 0 = any. */
-export const MIN_EVENTS_OPTIONS = [0, 1, 3, 5, 10] as const;
-function readMinEvents(): number {
+/**
+ * "Interest value N or more" (0 = any), the 0-30 the ad upload sends for a
+ * visit, graded per www session by infra's session-value.py. Each step is
+ * the lowest action worth it (infra cron/scripts/ad_value.py).
+ */
+export const MIN_INTEREST_OPTIONS = [
+  { value: 0, label: 'Any interest' },
+  { value: 1, label: '1+ · two pages, or a minute with a tap' },
+  { value: 2, label: '2+ · photos, details, FAQ, LMN started' },
+  { value: 5, label: '5+ · a search, or a merchant Buy on a phone' },
+  { value: 10, label: '10+ · LMN submitted, install link sent, desktop merchant Buy' },
+  { value: 20, label: '20+ · opened the checkout drawer' },
+  { value: 30, label: '30+ · card form, pay page, or install' },
+] as const;
+function readMinInterest(): number {
   try {
-    const n = Number(localStorage.getItem(MIN_EVENTS_KEY));
-    return (MIN_EVENTS_OPTIONS as readonly number[]).includes(n) ? n : 0;
+    const n = Number(localStorage.getItem(MIN_INTEREST_KEY));
+    return MIN_INTEREST_OPTIONS.some((o) => o.value === n) ? n : 0;
   } catch {
     return 0;
   }
@@ -211,9 +223,10 @@ class SearchStore {
   // Hidden by default, per browser; the toggle in SessionHeader shows it.
   hideInternal: boolean = readHideInternal();
 
-  // Caeli: only sessions with MORE than this many events (0 = any). The
-  // one-event, one-second sessions are mostly bounces and crawlers.
-  minEvents: number = readMinEvents();
+  // Caeli: only sessions whose interest value is at least this (0 = any),
+  // plus every session that reached an order. Ungraded sessions (not www,
+  // or under 15 minutes old) are left out while it is set.
+  minInterest: number = readMinInterest();
   urlParsed: boolean = false;
   searchInProgress = false;
 
@@ -629,7 +642,7 @@ class SearchStore {
       filter = this.applyDurationFilter(filter);
       filter = this.applyBotFilter(filter);
     filter = this.applyInternalFilter(filter);
-    filter = this.applyMinEventsFilter(filter);
+    filter = this.applyMinInterestFilter(filter);
 
       // Set time filter if we have the latest request time
       if (this.latestRequestTime) {
@@ -811,7 +824,7 @@ class SearchStore {
     filter = this.applyDurationFilter(filter);
     filter = this.applyBotFilter(filter);
     filter = this.applyInternalFilter(filter);
-    filter = this.applyMinEventsFilter(filter);
+    filter = this.applyMinInterestFilter(filter);
     this.latestRequestTime = filter.startDate;
     this.latestList = [];
     this.searchInProgress = true;
@@ -919,10 +932,10 @@ class SearchStore {
     }
   }
 
-  setMinEvents = (n: number) => {
-    this.minEvents = n;
+  setMinInterest = (n: number) => {
+    this.minInterest = n;
     try {
-      localStorage.setItem(MIN_EVENTS_KEY, String(n));
+      localStorage.setItem(MIN_INTEREST_KEY, String(n));
     } catch {
       /* not persisted */
     }
@@ -933,20 +946,20 @@ class SearchStore {
     void this.fetchSessions(true);
   };
 
-  private applyMinEventsFilter(filter: any): any {
-    if (!this.minEvents) return filter;
-    if (filter.filters.some((f: any) => f.name === FilterKey.EVENTS_COUNT)) return filter;
+  private applyMinInterestFilter(filter: any): any {
+    if (!this.minInterest) return filter;
+    if (filter.filters.some((f: any) => f.name === FilterKey.INTEREST_VALUE)) return filter;
     return {
       ...filter,
       filters: [
         ...filter.filters,
         {
-          name: FilterKey.EVENTS_COUNT,
-          operator: '>',
-          value: [String(this.minEvents)],
+          name: FilterKey.INTEREST_VALUE,
+          operator: '>=',
+          value: [String(this.minInterest)],
           dataType: 'number',
           isEvent: false,
-          autoCaptured: true,
+          autoCaptured: false,
           propertyOrder: 'and',
           filters: [],
         },

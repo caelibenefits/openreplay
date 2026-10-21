@@ -1,3 +1,4 @@
+import type { SessionInterest } from 'App/utils/sessionInterest';
 import APIClient, { apiClient, clean as cleanParams } from 'App/api_client';
 import { ISession } from 'Types/session/session';
 import { IErrorStack } from 'Types/session/errorStack';
@@ -6,6 +7,8 @@ export interface SessionSource {
   source?: string;
   campaign?: string;
   campaignId?: string;
+  // Caeli: the interest value (api search/value.go); absent when not graded
+  interest?: SessionInterest;
 }
 
 export interface CampaignName {

@@ -14,6 +14,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"openreplay/backend/pkg/analytics/model"
@@ -120,6 +121,21 @@ func (s *searchImpl) attachSources(ctx context.Context, projectId int, sessions 
 	if len(ids) == 0 {
 		return
 	}
+	// Independent of the source lookup below; neither waits on the other.
+	var values sync.WaitGroup
+	values.Add(1)
+	go func() {
+		defer values.Done()
+		defer func() {
+			if r := recover(); r != nil {
+				s.Logger.Warn(ctx, "session values panic: %v", r)
+			}
+		}()
+		vctx, cancel := context.WithTimeout(ctx, valuesTimeout)
+		defer cancel()
+		s.attachValues(vctx, projectId, ids, sessions)
+	}()
+	defer values.Wait()
 	fromSec := int64(minTs/1000) - 60
 	toSec := int64(maxTs/1000) + int64(entryWindow/time.Second)
 
@@ -165,6 +181,8 @@ type SessionSource struct {
 	Source     string `json:"source,omitempty"`
 	Campaign   string `json:"campaign,omitempty"`
 	CampaignId string `json:"campaignId,omitempty"`
+	// Caeli: the interest value (search/value.go); nil when not graded.
+	Interest *model.SessionInterest `json:"interest,omitempty"`
 }
 
 // GetSessionSource runs the session list's lookup for a single session. The
@@ -183,5 +201,6 @@ func (s *searchImpl) GetSessionSource(ctx context.Context, projectId int, sessio
 	}
 	sessions := []model.Session{{SessionId: strconv.FormatUint(sessionId, 10), StartTs: uint64(startTs)}}
 	s.attachSources(ctx, projectId, sessions)
-	return SessionSource{Source: sessions[0].Source, Campaign: sessions[0].Campaign, CampaignId: sessions[0].CampaignId}, true, nil
+	return SessionSource{Source: sessions[0].Source, Campaign: sessions[0].Campaign, CampaignId: sessions[0].CampaignId,
+		Interest: sessions[0].Interest}, true, nil
 }

@@ -16,6 +16,7 @@ import { observer } from 'mobx-react-lite';
 import { useTranslation } from 'react-i18next';
 import { sessionService } from 'App/services';
 import { sourceLabel, sourceTitle } from 'App/utils/sessionSource';
+import { interestLabel, interestTitle } from 'App/utils/sessionInterest';
 
 function UserCard({ className, width, height }) {
   const { t } = useTranslation();
@@ -149,6 +150,18 @@ function UserCard({ className, width, height }) {
                   title={sourceTitle(source)}
                 >
                   {sourceLabel(source)}
+                </span>
+              </>
+            )}
+            {source.interest && (
+              <>
+                <span className="mx-1 font-bold text-xl">&#183;</span>
+                <span
+                  className="truncate"
+                  style={{ maxWidth: 220 }}
+                  title={interestTitle(source.interest)}
+                >
+                  {interestLabel(source.interest)}
                 </span>
               </>
             )}

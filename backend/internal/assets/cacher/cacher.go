@@ -33,6 +33,11 @@ const MAX_CACHE_DEPTH = 5
 
 const hostDeferDelay = 250 * time.Millisecond
 
+// A content-hashed build asset can 404 before its deploy lands: a session on a
+// not-yet-deployed build references it first. Treated as permanent, that one
+// 404 left the asset uncached for every later session keyed to the same day.
+const buildAssetRetryDelay = 5 * time.Minute
+
 type cacher struct {
 	log            logger.Logger
 	timeoutMap     *timeoutMap                 // Concurrency implemented
@@ -200,6 +205,8 @@ func (c *cacher) cacheURL(t *Task) {
 		reason := "status_" + strconv.Itoa(res.StatusCode)
 		if isRetryableStatus(res.StatusCode) {
 			c.retry(ctx, t, c.retryAfterDelay(res), reason, cause)
+		} else if res.StatusCode == http.StatusNotFound && isBuildAsset(t.requestURL) {
+			c.retry(ctx, t, buildAssetRetryDelay, reason, cause)
 		} else {
 			c.permanent(ctx, t, reason, cause)
 		}
@@ -373,6 +380,13 @@ func isRetryableStatus(code int) bool {
 		return true
 	}
 	return code >= 500
+}
+
+// isBuildAsset: a Next.js build file, named by its content hash, so a later
+// fetch of the same URL returns the same bytes once the deploy has landed.
+func isBuildAsset(rawURL string) bool {
+	u, err := url.Parse(rawURL)
+	return err == nil && strings.Contains(u.Path, "/_next/static/")
 }
 
 func parseRetryAfter(h string) (time.Duration, bool) {

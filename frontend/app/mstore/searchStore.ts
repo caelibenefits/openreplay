@@ -54,18 +54,19 @@ const MIN_INTEREST_KEY = 'caeli_min_interest';
 // Caeli: how long a search waits for the filter catalog before going without it.
 export const CATALOG_WAIT_MS = 4000;
 /**
- * "Interest value N or more" (0 = any), the 0-30 the ad upload sends for a
- * visit, graded per www session by infra's session-value.py. Each step is
- * the lowest action worth it (infra cron/scripts/ad_value.py).
+ * "Interest value N or more" (0 = any): the value the ad upload sends for a
+ * visit, graded per www session by infra's ad-conversion-upload.py. It is the
+ * visit's highest action plus points for each further one (infra
+ * cron/scripts/ad_value.py, SCRUM-1925), so the steps are totals. A stored
+ * step that is no longer offered reads as "Any".
  */
 export const MIN_INTEREST_OPTIONS = [
   { value: 0, label: 'Any interest' },
-  { value: 1, label: '1+ · two pages, or a minute with a tap' },
-  { value: 2, label: '2+ · photos, details, FAQ, LMN started' },
-  { value: 5, label: '5+ · a search, or a merchant Buy on a phone' },
-  { value: 10, label: '10+ · LMN submitted, install link sent, desktop merchant Buy' },
+  { value: 5, label: '5+ · a search, or several photos and pages' },
+  { value: 10, label: '10+ · LMN submitted, install link sent, or a deep browse' },
   { value: 20, label: '20+ · opened the checkout drawer' },
   { value: 30, label: '30+ · card form, pay page, or install' },
+  { value: 50, label: '50+ · install or checkout, and a deep visit' },
 ] as const;
 function readMinInterest(): number {
   try {

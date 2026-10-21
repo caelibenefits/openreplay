@@ -197,6 +197,19 @@ describe('SearchStore class', () => {
     expect(after.filters.some((x: any) => x.name === FilterKey.INTEREST_VALUE)).toBe(false);
   });
 
+  // Caeli: the steps are totals since values aggregate a visit's actions
+  // (SCRUM-1925). A remembered step that is no longer offered (2+ was one)
+  // reads as Any rather than filtering on a value the menu cannot show.
+  it.each([
+    ['50', 50],
+    ['30', 30],
+    ['2', 0],
+  ])('a remembered Interest %s+ reads as %s', (stored, expected) => {
+    localStorage.setItem('caeli_min_interest', stored);
+    expect(new SearchStore().minInterest).toBe(expected);
+    localStorage.removeItem('caeli_min_interest');
+  });
+
   // Caeli: a toggle that narrows the list kept the page, so page 18 of the
   // wider list asked for an offset the narrower one did not reach and showed
   // "No sessions" (2026-10-13, query_log: OFFSET 170, 0 rows).

@@ -31,6 +31,7 @@ import {
 } from './VirtualDOM';
 import { deleteRule, insertRule } from './safeCSSRules';
 import { inlineAssetStylesheet, isAssetStylesheet, rewriteAssetUrls } from './assetRewrite';
+import { extensionAssetUrl } from './extensionAssets';
 import {
   REPLAY_CSP,
   REPLAY_IFRAME_SANDBOX,
@@ -321,6 +322,10 @@ export default class DOMManager extends ListWalker<Message> {
     if (vn.tagName === 'INPUT' && name === 'name') {
       // Otherwise binds local autocomplete values (maybe should ignore on the tracker level?)
       return;
+    }
+    // Caeli: an extension page's own asset loads from the dashboard's copy.
+    if ((name === 'href' && vn.tagName === 'LINK') || name === 'src') {
+      value = extensionAssetUrl(value) ?? value;
     }
     if (name === 'href' && vn.tagName === 'LINK') {
       // @ts-ignore  ?global ENV type   // It've been done on backend (remove after testing in saas)

@@ -723,7 +723,9 @@ func BuildDurationWhere(filters []model.Filter, tableAlias ...string) ([]string,
 				conds = append(conds, c)
 			}
 		} else if isNotVisitorFilter(f) {
-			conds = append(conds, notVisitorCond(alias))
+			if c := notVisitorCond(alias, f); c != "" {
+				conds = append(conds, c)
+			}
 		} else if string(f.Name) == "duration" && f.AutoCaptured {
 			v := f.Value
 			if len(v) == 1 {
@@ -812,7 +814,10 @@ func isNotVisitorFilter(f model.Filter) bool {
 	return !f.IsEvent && (f.Name == "hideNotVisitors" || f.Name == "hide_not_visitors")
 }
 
-func notVisitorCond(alias string) string {
+func notVisitorCond(alias string, f model.Filter) string {
+	if f.Operator != "is" || len(f.Value) != 1 || f.Value[0] != "true" {
+		return ""
+	}
 	return fmt.Sprintf("%s.session_id NOT IN (SELECT session_id FROM %s FINAL WHERE value IS NULL AND tier != 'internal')",
 		alias, InterestTable)
 }

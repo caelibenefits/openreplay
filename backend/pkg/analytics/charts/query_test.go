@@ -427,6 +427,16 @@ func TestBuildWhere_HideNotVisitorsIsASessionValueLookup(t *testing.T) {
 	if len(sess) != 1 || sess[0] != want {
 		t.Fatalf("got %q, want [%s]", sess, want)
 	}
+	// Only "is true" hides anything; any other shape is ignored, never inverted.
+	for _, other := range []model.Filter{
+		{Name: "hideNotVisitors", Operator: "is", Value: []string{"false"}},
+		{Name: "hideNotVisitors", Operator: "isNot", Value: []string{"true"}},
+		{Name: "hideNotVisitors", Operator: "is"},
+	} {
+		if _, _, _, sess := BuildWhere([]model.Filter{other}, "then", "e", "s"); len(sess) != 0 {
+			t.Fatalf("%v produced %q", other, sess)
+		}
+	}
 }
 
 // caeli: the table widget builds its own session conditions; a negative

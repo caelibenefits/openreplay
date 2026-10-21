@@ -12,3 +12,4 @@ export * from './mobile/IOSPlayer';
 export * from './mobile/IOSMessageManager';
 export * from './mobile/managers/TouchManager';
 export { configureAssetRewrite } from './web/managers/DOM/assetRewrite';
+export { configureExtensionAssets } from './web/managers/DOM/extensionAssets';

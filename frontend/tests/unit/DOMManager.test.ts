@@ -9,6 +9,10 @@ import {
 import DOMManager from '../../../player/src/web/managers/DOM/DOMManager';
 import { VElement } from '../../../player/src/web/managers/DOM/VirtualDOM';
 import { MType } from '../../../player/src/web/messages/raw.gen';
+import {
+  configureExtensionAssets,
+  extensionAssetUrl,
+} from '../../../player/src/web/managers/DOM/extensionAssets';
 
 class FrameVElement extends VElement {
   constructor(
@@ -180,5 +184,47 @@ describe('SetInputValue rejections', () => {
     const error = jest.spyOn(console, 'error').mockImplementation(() => {});
     expect(() => setInputValue(999, '2')).not.toThrow();
     expect(error).toHaveBeenCalled();
+  });
+});
+
+// Caeli: an extension popup/panel page loads its CSS and images from the
+// extension (safari-web-extension://<id>/assets/<hashed name>), which a viewer
+// cannot open; the player loads the dashboard's copy of that build file.
+describe('extension asset URLs', () => {
+  const css = 'safari-web-extension://16468CC8-6A86-40D1-A139-1CC631BCCF15/assets/popup-Bl-Nm-v6.css';
+
+  afterEach(() => configureExtensionAssets(null));
+
+  it('maps an extension asset to the served copy, any browser', () => {
+    configureExtensionAssets('https://replay.example/ext-assets/');
+    expect(extensionAssetUrl(css)).toBe('https://replay.example/ext-assets/popup-Bl-Nm-v6.css');
+    expect(extensionAssetUrl('chrome-extension://abcdef/assets/logo-x1.png?v=2')).toBe(
+      'https://replay.example/ext-assets/logo-x1.png',
+    );
+    // Not an extension asset, or no copy configured: left alone.
+    expect(extensionAssetUrl('https://www.getcaeli.com/assets/a.css')).toBeNull();
+    expect(extensionAssetUrl('safari-web-extension://id/popup.html')).toBeNull();
+    expect(extensionAssetUrl('safari-web-extension://id/assets/../secret')).toBeNull();
+    configureExtensionAssets(null);
+    expect(extensionAssetUrl(css)).toBeNull();
+  });
+
+  it("points a recorded <link> and <img> at the copy", () => {
+    configureExtensionAssets('https://replay.example/ext-assets/');
+    const link = mount('LINK', 7);
+    const img = mount('IMG', 8);
+    // @ts-ignore private access
+    manager.applyMessage({ tp: MType.SetNodeAttribute, id: 7, name: 'href', value: css });
+    // @ts-ignore private access
+    manager.applyMessage({
+      tp: MType.SetNodeAttribute, id: 8, name: 'src',
+      value: 'safari-web-extension://16468CC8/assets/caeli-mark-AbC123.png',
+    });
+    // @ts-ignore private access
+    manager.vElements.get(7).applyChanges();
+    // @ts-ignore private access
+    manager.vElements.get(8).applyChanges();
+    expect(link.getAttribute('href')).toBe('https://replay.example/ext-assets/popup-Bl-Nm-v6.css');
+    expect(img.getAttribute('src')).toBe('https://replay.example/ext-assets/caeli-mark-AbC123.png');
   });
 });

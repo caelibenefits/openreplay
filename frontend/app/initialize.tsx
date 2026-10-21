@@ -1,4 +1,4 @@
-import { configureAssetRewrite } from '@openreplay/player';
+import { configureAssetRewrite, configureExtensionAssets } from '@openreplay/player';
 import ENV_FOR_ASSETS from 'ENV';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { configurePlayer } from 'Player/config';
@@ -42,6 +42,9 @@ try {
 } catch {
   /* no rewrite */
 }
+// Caeli: extension popup/panel recordings load their CSS from the extension;
+// the dashboard serves copies of the builds' assets/ at /ext-assets/.
+configureExtensionAssets(`${window.location.origin}/ext-assets/`);
 
 
 configurePlayer({

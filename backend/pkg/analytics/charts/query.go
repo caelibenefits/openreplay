@@ -209,7 +209,7 @@ func BuildEventConditions(filters []model.Filter, option BuildConditionsOptions)
 		if f.AutoCaptured && !f.IsEvent {
 			f.Name = CamelToSnake(f.Name)
 		}
-		if f.Name == string(FilterDuration) || isEventsCountFilter(f) || isInterestFilter(f) {
+		if f.Name == string(FilterDuration) || isEventsCountFilter(f) || isInterestFilter(f) || isNotVisitorFilter(f) {
 			continue
 		}
 		conds, nameCondition := addFilter(f, opts, f.IsEvent)
@@ -722,6 +722,10 @@ func BuildDurationWhere(filters []model.Filter, tableAlias ...string) ([]string,
 			if c := interestCond(alias, f); c != "" {
 				conds = append(conds, c)
 			}
+		} else if isNotVisitorFilter(f) {
+			if c := notVisitorCond(alias, f); c != "" {
+				conds = append(conds, c)
+			}
 		} else if string(f.Name) == "duration" && f.AutoCaptured {
 			v := f.Value
 			if len(v) == 1 {
@@ -774,10 +778,11 @@ func eventsCountCond(alias string, f model.Filter) string {
 }
 
 // caeli: a session's interest value (0 and up, the ad upload's visit value) is
-// written per session by infra's session-value.py to caeli.session_value on
-// this ClickHouse. "Interest >= n" keeps the sessions graded n or more, and
-// every session that reached an order, which the value leaves to Purchase. A
-// session not graded yet (the job runs every 15 minutes) is not listed.
+// written per session by infra's ad-conversion-upload.py (replay_value.py) to
+// caeli.session_value on this ClickHouse. "Interest >= n" keeps the sessions
+// graded n or more, and every session that reached an order, which the value
+// leaves to Purchase. A session not graded yet (the job runs hourly) is not
+// listed.
 const InterestTable = "caeli.session_value"
 
 func isInterestFilter(f model.Filter) bool {
@@ -799,6 +804,22 @@ func interestCond(alias string, f model.Filter) string {
 	}
 	return fmt.Sprintf("%s.session_id IN (SELECT session_id FROM %s FINAL WHERE value >= %d OR (ordered = 1 AND value IS NOT NULL))",
 		alias, InterestTable, n)
+}
+
+// caeli: "Bots hidden" also hides what the grader already called not a visitor
+// (value NULL: a crawler, an automated check, an old desktop browser; our own
+// traffic is the Internal toggle's), so a cloud crawler that passes as plain
+// Chrome goes once graded. A session not graded yet stays listed.
+func isNotVisitorFilter(f model.Filter) bool {
+	return !f.IsEvent && (f.Name == "hideNotVisitors" || f.Name == "hide_not_visitors")
+}
+
+func notVisitorCond(alias string, f model.Filter) string {
+	if f.Operator != "is" || len(f.Value) != 1 || f.Value[0] != "true" {
+		return ""
+	}
+	return fmt.Sprintf("%s.session_id NOT IN (SELECT session_id FROM %s FINAL WHERE value IS NULL AND tier != 'internal')",
+		alias, InterestTable)
 }
 
 // buildLocationConditions extracts the url_path properties of LOCATION filters

@@ -412,6 +412,33 @@ func TestBuildWhere_InterestIsASessionValueLookup(t *testing.T) {
 	}
 }
 
+// caeli: "Bots hidden" also drops what the grader called not a visitor, but
+// never our own traffic (the Internal toggle's) or a session not graded yet.
+func TestBuildWhere_HideNotVisitorsIsASessionValueLookup(t *testing.T) {
+	f := model.Filter{Name: "hideNotVisitors", Operator: "is", Value: []string{"true"}}
+	ev, flt, neg, sess := BuildWhere([]model.Filter{f}, "then", "e", "s")
+	if len(ev)+len(flt)+len(neg) != 0 {
+		t.Fatalf("still compiled as an event condition: %q %q %q", ev, flt, neg)
+	}
+	if ev, _, misc := BuildEventConditions([]model.Filter{f}, BuildConditionsOptions{MainTableAlias: "e"}); len(ev)+len(misc) != 0 {
+		t.Fatalf("BuildEventConditions compiled it: %q %q", ev, misc)
+	}
+	want := "s.session_id NOT IN (SELECT session_id FROM caeli.session_value FINAL WHERE value IS NULL AND tier != 'internal')"
+	if len(sess) != 1 || sess[0] != want {
+		t.Fatalf("got %q, want [%s]", sess, want)
+	}
+	// Only "is true" hides anything; any other shape is ignored, never inverted.
+	for _, other := range []model.Filter{
+		{Name: "hideNotVisitors", Operator: "is", Value: []string{"false"}},
+		{Name: "hideNotVisitors", Operator: "isNot", Value: []string{"true"}},
+		{Name: "hideNotVisitors", Operator: "is"},
+	} {
+		if _, _, _, sess := BuildWhere([]model.Filter{other}, "then", "e", "s"); len(sess) != 0 {
+			t.Fatalf("%v produced %q", other, sess)
+		}
+	}
+}
+
 // caeli: the table widget builds its own session conditions; a negative
 // metadata filter there must keep sessions without the value, like the list.
 func TestTableSessionConditions_NegativeMetadataKeepsMissingValues(t *testing.T) {

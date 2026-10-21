@@ -987,6 +987,17 @@ class SearchStore {
     if (botCol && !filter.filters.some((f: any) => f.name === botCol)) {
       filter = { ...filter, filters: [...filter.filters, excludeTaggedBotsFilter(botCol)] };
     }
+    // And what the grader called not a visitor (a crawler on a cloud IP that
+    // passes as plain Chrome, an automated check): caeli.session_value.
+    if (!filter.filters.some((f: any) => f.name === FilterKey.HIDE_NOT_VISITORS)) {
+      filter = {
+        ...filter,
+        filters: [...filter.filters, {
+          name: FilterKey.HIDE_NOT_VISITORS, operator: 'is', value: ['true'], dataType: 'string',
+          isEvent: false, autoCaptured: false, propertyOrder: 'and', filters: [],
+        }],
+      };
+    }
     // A search that already filters on the browser is the user's own call.
     if (filter.filters.some((f: any) => f.name === FilterKey.USER_BROWSER)) {
       return filter;

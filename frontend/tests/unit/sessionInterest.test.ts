@@ -2,39 +2,43 @@ import { describe, expect, test } from '@jest/globals';
 
 import { interestLabel, interestTitle } from '../../app/utils/sessionInterest';
 
-describe('session interest text', () => {
-  test('a graded visit shows its value', () => {
-    expect(interestLabel({ value: 10, tier: '5 intent' })).toBe('Interest 10');
-    expect(interestTitle({ value: 10, tier: '5 intent' })).toContain(
-      'Interest value 10 (its highest action',
-    );
-    // Values aggregate a visit's actions (SCRUM-1925): no fixed ceiling.
-    expect(interestTitle({ value: 51, tier: '5 intent' })).not.toMatch(/ of \d/);
-    expect(interestTitle({ value: 10, tier: '5 intent' })).toContain(
-      '(intent)',
-    );
+describe('session projected value text', () => {
+  test('a graded visit shows its projected dollars', () => {
+    const v = { value: 10, dollars: 5.53, tier: '5 intent' };
+    expect(interestLabel(v)).toBe('Projected $5.53');
+    expect(interestTitle(v)).toContain('Projected value $5.53: the order value');
+    expect(interestTitle(v)).toContain('(intent)');
+    expect(interestLabel(v)).not.toContain('Interest');
   });
 
   test('zero is a value, not nothing', () => {
-    expect(interestLabel({ value: 0, tier: '1 bounce' })).toBe('Interest 0');
+    expect(interestLabel({ value: 0, dollars: 0, tier: '1 bounce' })).toBe('Projected $0.00');
+  });
+
+  test('a returning visitor says why it is $0', () => {
+    const back = { value: 12, dollars: 0, tier: '4 interested' };
+    expect(interestTitle(back)).toContain('earlier www session');
+    expect(interestTitle({ value: 0, dollars: 0, tier: '1 bounce' })).not.toContain('earlier www session');
   });
 
   test('an order and a young session say so', () => {
     expect(
       interestLabel({
         value: 0,
+        dollars: 0,
         tier: '5 intent',
         ordered: true,
         provisional: true,
       }),
-    ).toBe('Interest 0 · ordered · so far');
+    ).toBe('Projected $0.00 · ordered · so far');
   });
 
-  test('not a visitor names why; no grade shows nothing', () => {
-    expect(interestLabel({ value: null, tier: 'crawler' })).toBe(
+  test('not a visitor names why; no grade or no dollars shows nothing', () => {
+    expect(interestLabel({ value: null, dollars: null, tier: 'crawler' })).toBe(
       'Not a visitor (crawler)',
     );
     expect(interestLabel(undefined)).toBe('');
     expect(interestTitle(null)).toBe('');
+    expect(interestLabel({ value: 5, tier: '3 engaged' })).toBe('');
   });
 });

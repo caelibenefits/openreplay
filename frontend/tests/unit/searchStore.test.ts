@@ -183,14 +183,14 @@ describe('SearchStore class', () => {
     expect(duration.value).toEqual(["1000"]);
   });
 
-  // Caeli: "Interest N+" sends one interestValue >= N filter; "Any" sends none.
-  it('setMinInterest filters on the interest value', async () => {
-    store.setMinInterest(10);
+  // Caeli: "Projected $N+" sends one interestValue >= N filter; "Any" sends none.
+  it('setMinInterest filters on the projected value', async () => {
+    store.setMinInterest(20);
     await new Promise((r) => setTimeout(r, 0));
     const call = mockSessionFetch.mock.calls.at(-1)?.[0] as any;
     const f = call.filters.filter((x: any) => x.name === FilterKey.INTEREST_VALUE);
     expect(f).toHaveLength(1);
-    expect(f[0]).toMatchObject({ operator: '>=', value: ['10'], isEvent: false, autoCaptured: false });
+    expect(f[0]).toMatchObject({ operator: '>=', value: ['20'], isEvent: false, autoCaptured: false });
     store.setMinInterest(0);
     await new Promise((r) => setTimeout(r, 0));
     const after = mockSessionFetch.mock.calls.at(-1)?.[0] as any;
@@ -211,16 +211,22 @@ describe('SearchStore class', () => {
     expect(off.filters.some((x: any) => x.name === FilterKey.HIDE_NOT_VISITORS)).toBe(false);
   });
 
-  // Caeli: the steps are totals since values aggregate a visit's actions
-  // (SCRUM-1925). A remembered step that is no longer offered (2+ was one)
-  // reads as Any rather than filtering on a value the menu cannot show.
+  // Caeli: the steps are dollars since SCRUM-1956. A remembered step that is
+  // no longer offered reads as Any rather than filtering on a value the menu
+  // cannot show, and the points-era key is not read at all: its 50 meant points.
   it.each([
-    ['50', 50],
-    ['30', 30],
-    ['2', 0],
-  ])('a remembered Interest %s+ reads as %s', (stored, expected) => {
-    localStorage.setItem('caeli_min_interest', stored);
+    ['100', 100],
+    ['1', 1],
+    ['30', 0],
+  ])('a remembered Projected $%s+ reads as %s', (stored, expected) => {
+    localStorage.setItem('caeli_min_projected', stored);
     expect(new SearchStore().minInterest).toBe(expected);
+    localStorage.removeItem('caeli_min_projected');
+  });
+
+  it('a points-era step is not read as dollars', () => {
+    localStorage.setItem('caeli_min_interest', '50');
+    expect(new SearchStore().minInterest).toBe(0);
     localStorage.removeItem('caeli_min_interest');
   });
 

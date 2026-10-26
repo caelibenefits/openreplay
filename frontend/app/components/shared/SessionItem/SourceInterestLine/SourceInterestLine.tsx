@@ -15,7 +15,9 @@ interface Props {
 /** Caeli: "<source> · <interest>" on one line of the session list tile, each
  *  part with its own hover text (2026-10-21: tiles had grown to 7-8 lines). */
 export default function SourceInterestLine({ source, campaign, campaignId, interest }: Props) {
-  if (!source && !interest) return null;
+  // A row with no projected value yet has no label: show the source alone.
+  const label = interestLabel(interest);
+  if (!source && !label) return null;
   return (
     <div className="text-neutral-500 truncate max-w-full">
       {source && (
@@ -23,8 +25,8 @@ export default function SourceInterestLine({ source, campaign, campaignId, inter
           {sourceLabel({ source, campaign })}
         </span>
       )}
-      {source && interest && ' · '}
-      {interest && <span title={interestTitle(interest)}>{interestLabel(interest)}</span>}
+      {source && label && ' · '}
+      {label && <span title={interestTitle(interest)}>{label}</span>}
     </div>
   );
 }

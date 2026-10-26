@@ -74,7 +74,7 @@ function SessionHeader() {
           <div className="px-[7px]">
             <SortDropdown
               defaultOption={String(searchStore.minInterest)}
-              current={searchStore.minInterest ? `Interest ${searchStore.minInterest}+` : 'Any interest'}
+              current={searchStore.minInterest ? `Projected $${searchStore.minInterest}+` : 'Any value'}
               sortOptions={MIN_INTEREST_OPTIONS.map((o) => ({ key: String(o.value), label: o.label }))}
               onSort={({ key }: { key: string }) => searchStore.setMinInterest(Number(key))}
             />

@@ -384,7 +384,7 @@ func TestBuildWhere_EventsCountIsASessionsColumn(t *testing.T) {
 	}
 }
 
-// caeli: "Interest >= n" keeps the sessions graded n or more, and visitors' orders
+// caeli: "Projected >= $n" keeps the sessions worth n dollars or more, and visitors' orders
 // (not the canaries', which order every day as "internal").
 func TestBuildWhere_InterestIsASessionValueLookup(t *testing.T) {
 	f := model.Filter{Name: "interestValue", Operator: ">=", Value: []string{"5"}, DataType: "number"}
@@ -396,14 +396,20 @@ func TestBuildWhere_InterestIsASessionValueLookup(t *testing.T) {
 	if ev, _, misc := BuildEventConditions([]model.Filter{f}, BuildConditionsOptions{MainTableAlias: "e"}); len(ev)+len(misc) != 0 {
 		t.Fatalf("BuildEventConditions compiled it: %q %q", ev, misc)
 	}
-	want := "s.session_id IN (SELECT session_id FROM caeli.session_value FINAL WHERE value >= 5 OR (ordered = 1 AND value IS NOT NULL))"
+	want := "s.session_id IN (SELECT session_id FROM caeli.session_value FINAL WHERE dollars >= 5 OR (ordered = 1 AND dollars IS NOT NULL))"
 	if len(sess) != 1 || sess[0] != want {
 		t.Fatalf("got %q, want [%s]", sess, want)
+	}
+	f.Value = []string{"0.5"}
+	if _, _, _, sess := BuildWhere([]model.Filter{f}, "then", "e", "s"); len(sess) != 1 || !strings.Contains(sess[0], "dollars >= 0.5 OR") {
+		t.Fatalf("a fractional step: %q", sess)
 	}
 	// Garbage, out-of-range values and other operators never reach SQL.
 	for _, bad := range []model.Filter{
 		{Name: "interestValue", Operator: ">=", Value: []string{"5) OR 1=1 --"}},
-		{Name: "interestValue", Operator: ">=", Value: []string{"300"}},
+		{Name: "interestValue", Operator: ">=", Value: []string{"1e9"}},
+		{Name: "interestValue", Operator: ">=", Value: []string{"NaN"}},
+		{Name: "interestValue", Operator: ">=", Value: []string{"-1"}},
 		{Name: "interestValue", Operator: "<", Value: []string{"5"}},
 	} {
 		if ev, flt, _, sess := BuildWhere([]model.Filter{bad}, "then", "e", "s"); len(ev)+len(sess)+len(flt) != 0 {

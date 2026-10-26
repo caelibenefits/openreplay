@@ -44,16 +44,16 @@ describe('session list metadata chips', () => {
     expect(chipsThatFit([], 90)).toBe(0);
   });
 
-  it('puts source and interest on one line, each with its hover text', () => {
+  it('puts the projected value on its own line above the source, each with its hover text', () => {
     const html = renderToStaticMarkup(
       React.createElement(SourceInterestLine, {
         source: 'Google Ads', campaign: 'Shop', campaignId: '123',
         interest: { value: 36, dollars: 5.53, tier: '5 intent', provisional: true } as any,
       }),
     );
-    // One block holding both parts.
-    expect(html.match(/<div/g)).toHaveLength(1);
-    expect(html.replace(/<[^>]+>/g, '')).toBe('Google Ads · Shop · Projected $5.53 · so far');
+    // Two lines: a long campaign name can no longer truncate the value away.
+    const lines = [...html.matchAll(/<span[^>]*>([^<]*)<\/span>/g)].map((m) => m[1]);
+    expect(lines).toEqual(['Projected $5.53 · so far', 'Google Ads · Shop']);
     expect(html).toContain('title="Google Ads · campaign Shop (123)"');
     expect(html).toContain('title="Projected value $5.53');
     const alone = renderToStaticMarkup(React.createElement(SourceInterestLine, { interest: { value: 5, dollars: 1, tier: '3 engaged' } as any }));
@@ -63,6 +63,7 @@ describe('session list metadata chips', () => {
       source: 'Google Ads', campaign: 'Shop', interest: { value: 5, tier: '3 engaged' } as any,
     }));
     expect(ungraded.replace(/<[^>]+>/g, '')).toBe('Google Ads · Shop');
+    expect(ungraded.match(/<span/g)).toHaveLength(1);
     expect(renderToStaticMarkup(React.createElement(SourceInterestLine, { interest: { value: 5, tier: '3 engaged' } as any }))).toBe('');
     expect(renderToStaticMarkup(React.createElement(SourceInterestLine, {}))).toBe('');
   });

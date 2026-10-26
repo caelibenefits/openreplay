@@ -50,23 +50,25 @@ export const BOT_BROWSERS = [
 const MAX_FILTER_VALUES = 10;
 const HIDE_BOTS_KEY = 'caeli_hide_bots';
 const HIDE_INTERNAL_KEY = 'caeli_hide_internal';
-const MIN_INTEREST_KEY = 'caeli_min_interest';
+// A new key: the old one held points steps (5, 10, 20, 30, 50), not dollars.
+const MIN_INTEREST_KEY = 'caeli_min_projected';
 // Caeli: how long a search waits for the filter catalog before going without it.
 export const CATALOG_WAIT_MS = 4000;
 /**
- * "Interest value N or more" (0 = any): the value the ad upload sends for a
- * visit, graded per www session by infra's ad-conversion-upload.py. It is the
- * visit's highest action plus points for each further one (infra
- * cron/scripts/ad_value.py, SCRUM-1925), so the steps are totals. A stored
- * step that is no longer offered reads as "Any".
+ * "Projected value $N or more" (0 = any): the visit's expected order value in
+ * dollars, the value the ad upload sends, graded per www session by infra's
+ * ad-conversion-upload.py (cron/scripts/ad_value.py visit_dollars, SCRUM-1956).
+ * Actions multiply the odds, so one action alone is under $1 (a merchant
+ * hand-off $0.73) and combinations reach more (with photos $5.53, and pages
+ * too $22.90). A stored step that is no longer offered reads as "Any".
  */
 export const MIN_INTEREST_OPTIONS = [
-  { value: 0, label: 'Any interest' },
-  { value: 5, label: '5+ · a search, or several photos and pages' },
-  { value: 10, label: '10+ · LMN submitted, install link sent, or a deep browse' },
-  { value: 20, label: '20+ · opened the checkout drawer' },
-  { value: 30, label: '30+ · card form, pay page, or install' },
-  { value: 50, label: '50+ · install or checkout, and a deep visit' },
+  { value: 0, label: 'Any value' },
+  { value: 1, label: '$1+' },
+  { value: 5, label: '$5+' },
+  { value: 20, label: '$20+' },
+  { value: 50, label: '$50+' },
+  { value: 100, label: '$100+' },
 ] as const;
 function readMinInterest(): number {
   try {

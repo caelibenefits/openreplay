@@ -777,13 +777,17 @@ func eventsCountCond(alias string, f model.Filter) string {
 	return fmt.Sprintf("%s.events_count %s %d", alias, op, n)
 }
 
-// caeli: a session's interest value (0 and up, the ad upload's visit value) is
-// written per session by infra's ad-conversion-upload.py (replay_value.py) to
-// caeli.session_value on this ClickHouse. "Interest >= n" keeps the sessions
-// graded n or more, and every session that reached an order, which the value
-// leaves to Purchase. A session not graded yet (the job runs hourly) is not
-// listed.
+// caeli: a session's projected value (dollars, the ad upload's visit value since
+// SCRUM-1956) is written per session by infra's ad-conversion-upload.py
+// (replay_value.py) to caeli.session_value on this ClickHouse. "Projected >= $n"
+// keeps the sessions worth n dollars or more, and every session that reached an
+// order, which the value leaves to Purchase. A session not graded yet (the job
+// runs hourly) is not listed.
 const InterestTable = "caeli.session_value"
+
+// maxProjectedDollars bounds the filter's value; the largest projected value on
+// record is under $200.
+const maxProjectedDollars = 100000
 
 func isInterestFilter(f model.Filter) bool {
 	return !f.IsEvent && (f.Name == "interestValue" || f.Name == "interest_value")
@@ -798,12 +802,14 @@ func interestCond(alias string, f model.Filter) string {
 	if len(f.Value) == 0 {
 		return ""
 	}
-	n, err := strconv.ParseUint(strings.TrimSpace(f.Value[0]), 10, 8)
-	if err != nil {
+	n, err := strconv.ParseFloat(strings.TrimSpace(f.Value[0]), 64)
+	// A parsed number is its own literal; NaN, infinities and out-of-range
+	// values never reach SQL.
+	if err != nil || !(n >= 0 && n <= maxProjectedDollars) {
 		return ""
 	}
-	return fmt.Sprintf("%s.session_id IN (SELECT session_id FROM %s FINAL WHERE value >= %d OR (ordered = 1 AND value IS NOT NULL))",
-		alias, InterestTable, n)
+	return fmt.Sprintf("%s.session_id IN (SELECT session_id FROM %s FINAL WHERE dollars >= %s OR (ordered = 1 AND dollars IS NOT NULL))",
+		alias, InterestTable, strconv.FormatFloat(n, 'f', -1, 64))
 }
 
 // caeli: "Bots hidden" also hides what the grader already called not a visitor

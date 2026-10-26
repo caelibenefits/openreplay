@@ -163,10 +163,12 @@ func ValidateFilterFields(sl validator.StructLevel) {
 	}
 }
 
-// SessionInterest is a session's interest value (caeli.session_value).
-// Value is nil for "not a visitor"; Provisional until the session is 2h old.
+// SessionInterest is a session's value (caeli.session_value): Dollars is the
+// projected value in dollars, Value the older points. Both are nil for "not a
+// visitor"; Provisional until the session is 2h old.
 type SessionInterest struct {
-	Value       *uint8 `json:"value"`
+	Value       *uint8   `json:"value"`
+	Dollars     *float32 `json:"dollars"`
 	Tier        string `json:"tier"`
 	Ordered     bool   `json:"ordered,omitempty"`
 	Provisional bool   `json:"provisional,omitempty"`

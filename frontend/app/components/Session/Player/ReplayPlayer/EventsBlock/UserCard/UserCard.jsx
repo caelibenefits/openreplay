@@ -153,7 +153,7 @@ function UserCard({ className, width, height }) {
                 </span>
               </>
             )}
-            {source.interest && (
+            {interestLabel(source.interest) && (
               <>
                 <span className="mx-1 font-bold text-xl">&#183;</span>
                 <span

@@ -224,6 +224,17 @@ export default class FilterStore {
     return filter ? new FilterItem({ ...filter, filters: [] }) : undefined;
   };
 
+  // The filter a session-tile metadata chip adds. SessionMetaList sends the
+  // chip as { name: `_${label}`, value }.
+  filterForMetaChip = (meta: {
+    name: string;
+    value: string;
+  }): FilterItem | undefined => {
+    const filter = this.findMetadataFilter(meta.name.replace(/^_/, ''));
+    if (filter) filter.value = [meta.value];
+    return filter;
+  };
+
   // findEventProperty = (
   //   eventId: string,
   //   data: Partial<Filter>,

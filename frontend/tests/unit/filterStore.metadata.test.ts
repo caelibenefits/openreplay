@@ -47,3 +47,13 @@ describe('FilterStore.findMetadataFilter', () => {
     expect((store.getFilters('1')[0] as any).value).toBeUndefined();
   });
 });
+
+describe('FilterStore.filterForMetaChip', () => {
+  it('turns the chip SessionMetaList sends into a metadata_N filter with its value', () => {
+    const store = new FilterStore();
+    store.setFilters('1', [eventProp, metadata] as any);
+    const f = store.filterForMetaChip({ name: '_surface', value: 'panel' });
+    expect(f?.name).toBe('metadata_3');
+    expect(f?.value).toEqual(['panel']);
+  });
+});

@@ -282,12 +282,11 @@ function SessionItem(props: RouteComponentProps & Props) {
   }, [startedAt, timezone, userTimezone]);
 
   const onMetaClick = (meta: { name: string; value: string }) => {
-    const filter = filterStore.findMetadataFilter(meta.name.slice(1));
+    const filter = filterStore.filterForMetaChip(meta);
     if (!filter) {
       console.warn('cant find meta filter', meta);
       return;
     }
-    filter.value = [meta.value];
     if (isAssist) {
       searchStoreLive.addFilter(filter);
     } else {

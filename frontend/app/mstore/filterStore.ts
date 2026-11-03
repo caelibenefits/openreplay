@@ -208,6 +208,22 @@ export default class FilterStore {
     return new FilterItem(copy);
   };
 
+  // Caeli: the session-tile metadata chip (e.g. `surface: panel`) must filter on
+  // the metadata column, but findEvent({ displayName }) returns the FIRST
+  // catalog entry with that label, and an event property can share it (the
+  // extension sends `surface` on checkout-open and error events too). That
+  // built "Event · surface is panel", which matches nothing. Only metadata
+  // entries are named metadata_N (filters_catalog/pg_metadata.go).
+  findMetadataFilter = (key: string): FilterItem | undefined => {
+    const siteId = projectStore.activeSiteId?.toString();
+    if (!siteId) return undefined;
+    const filter = this.getFilters(siteId).find(
+      (f: Filter) =>
+        /^metadata_\d+$/.test(f.name) && (f.displayName || f.name) === key,
+    );
+    return filter ? new FilterItem({ ...filter, filters: [] }) : undefined;
+  };
+
   // findEventProperty = (
   //   eventId: string,
   //   data: Partial<Filter>,

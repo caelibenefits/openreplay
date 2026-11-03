@@ -207,16 +207,9 @@ function PrivateRoutes() {
       const filters: any[] = [];
       parsedFilters.forEach((f, i) => {
         const value = searchParams.get(f) as string;
-        const isMeta = f.startsWith('meta_');
-        const filterName = isMeta ? f.replace('meta_', '') : f;
-        // Caeli: a meta_ param resolves only to the metadata column, the same
-        // rule as the session-tile chip (see findMetadataFilter).
-        const filter = isMeta
-          ? filterStore.findMetadataFilter(filterName)
-          : filterStore.findEvent({ name: filterName });
-        if (!filter) return;
-        filter.value = [value];
-        filters.push(filter);
+        // Caeli: see filterStore.filterForUrlParam.
+        const filter = filterStore.filterForUrlParam(f, value);
+        if (filter) filters.push(filter);
       });
       searchStore.edit({
         filters,

@@ -57,3 +57,19 @@ describe('FilterStore.filterForMetaChip', () => {
     expect(f?.value).toEqual(['panel']);
   });
 });
+
+describe('FilterStore.filterForUrlParam', () => {
+  it('resolves a meta_ param to the metadata column, not the same-named event property', () => {
+    const store = new FilterStore();
+    store.setFilters('1', [eventProp, metadata] as any);
+    const f = store.filterForUrlParam('meta_surface', 'panel');
+    expect(f?.name).toBe('metadata_3');
+    expect(f?.value).toEqual(['panel']);
+  });
+
+  it('drops a meta_ param the project has no metadata column for', () => {
+    const store = new FilterStore();
+    store.setFilters('1', [eventProp] as any);
+    expect(store.filterForUrlParam('meta_surface', 'panel')).toBeUndefined();
+  });
+});

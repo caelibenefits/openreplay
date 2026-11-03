@@ -207,16 +207,9 @@ function PrivateRoutes() {
       const filters: any[] = [];
       parsedFilters.forEach((f, i) => {
         const value = searchParams.get(f) as string;
-        const isMeta = f.startsWith('meta_');
-        const filterName = isMeta ? f.replace('meta_', '') : f;
-        const searchPayload = isMeta
-          ? { displayName: filterName }
-          : { name: filterName };
-        const filter = filterStore.findEvent(searchPayload);
-        if (filter) {
-          filter.value = [value];
-        }
-        filters.push(filter);
+        // Caeli: see filterStore.filterForUrlParam.
+        const filter = filterStore.filterForUrlParam(f, value);
+        if (filter) filters.push(filter);
       });
       searchStore.edit({
         filters,

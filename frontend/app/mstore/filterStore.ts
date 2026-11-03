@@ -4,6 +4,7 @@ import { makeAutoObservable, reaction, runInAction } from 'mobx';
 
 import { filterService, searchService } from 'App/services';
 import { arraysIntersect, normalizeDataType } from 'App/utils';
+import { metadataColumn } from 'App/utils/caeliInternalTraffic';
 
 import { COMMON_FILTERS, Filter } from './types/filterConstants';
 import FilterItem from './types/filterItem';
@@ -206,6 +207,46 @@ export default class FilterStore {
     const copy = { ...filter, filters: [] as any[] };
 
     return new FilterItem(copy);
+  };
+
+  // Caeli: the session-tile metadata chip (e.g. `surface: panel`) must filter on
+  // the metadata column, but findEvent({ displayName }) returns the FIRST
+  // catalog entry with that label, and an event property can share it (the
+  // extension sends `surface` on checkout-open and error events too). That
+  // built "Event · surface is panel", which matches nothing. metadataColumn
+  // is the one rule for "which metadata_N column is this key".
+  findMetadataFilter = (key: string): FilterItem | undefined => {
+    const siteId = projectStore.activeSiteId?.toString();
+    if (!siteId) return undefined;
+    const catalog = this.getFilters(siteId);
+    const column = metadataColumn(catalog, key);
+    const filter = column && catalog.find((f: Filter) => f.name === column);
+    return filter ? new FilterItem({ ...filter, filters: [] }) : undefined;
+  };
+
+  // The filter a session-tile metadata chip adds. SessionMetaList sends the
+  // chip as { name: `_${label}`, value }.
+  filterForMetaChip = (meta: {
+    name: string;
+    value: string;
+  }): FilterItem | undefined => {
+    const filter = this.findMetadataFilter(meta.name.replace(/^_/, ''));
+    if (filter) filter.value = [meta.value];
+    return filter;
+  };
+
+  // The filter a session-list URL param adds (PrivateRoutes): `meta_<key>`
+  // resolves only to the metadata column; anything else by filter name. An
+  // unknown meta_ key is dropped rather than added as an empty filter.
+  filterForUrlParam = (
+    param: string,
+    value: string,
+  ): FilterItem | undefined => {
+    const filter = param.startsWith('meta_')
+      ? this.findMetadataFilter(param.slice('meta_'.length))
+      : this.findEvent({ name: param });
+    if (filter) filter.value = [value];
+    return filter;
   };
 
   // findEventProperty = (

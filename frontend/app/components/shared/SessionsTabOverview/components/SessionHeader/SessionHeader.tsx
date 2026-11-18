@@ -51,6 +51,7 @@ function SessionHeader() {
           <SessionSort />
           <div className="px-[7px]">
             <SortDropdown
+              active={searchStore.hideBots}
               defaultOption={searchStore.hideBots ? 'hide' : 'show'}
               current={searchStore.hideBots ? 'Bots hidden' : 'Bots shown'}
               sortOptions={[
@@ -62,6 +63,7 @@ function SessionHeader() {
           </div>
           <div className="px-[7px]">
             <SortDropdown
+              active={searchStore.hideInternal}
               defaultOption={searchStore.hideInternal ? 'hide' : 'show'}
               current={searchStore.hideInternal ? 'Internal hidden' : 'Internal shown'}
               sortOptions={[
@@ -73,6 +75,7 @@ function SessionHeader() {
           </div>
           <div className="px-[7px]">
             <SortDropdown
+              active={searchStore.minInterest > 0}
               defaultOption={String(searchStore.minInterest)}
               current={searchStore.minInterest ? `Projected $${searchStore.minInterest}+` : 'Any value'}
               sortOptions={MIN_INTEREST_OPTIONS.map((o) => ({ key: String(o.value), label: o.label }))}

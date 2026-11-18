@@ -42,8 +42,11 @@ function PlayIconLayer({ playing, togglePlay, jumpInterval }: Props) {
       e.target instanceof HTMLTextAreaElement
     )
       return;
+    // Caeli: useShortcuts (always mounted with the controls) owns Space.
+    // Toggling here too made one press pause and resume at once; this layer
+    // only shows the play/pause flash.
     if (e.key === ' ') {
-      togglePlayAnimated();
+      playAnimation();
     }
   };
 

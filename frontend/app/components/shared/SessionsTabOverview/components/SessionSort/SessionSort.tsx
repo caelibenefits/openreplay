@@ -31,11 +31,16 @@ export function SortDropdown<T>({
   onSort,
   sortOptions,
   current,
+  active = false,
 }: {
   defaultOption?: string;
   onSort: ({ key, item }: { key: string; item: T }) => void;
   sortOptions: any;
   current: string;
+  /** Caeli: this toggle is narrowing the list. Drawn as a tinted pill so a
+   *  filter that lives in the toolbar, not under Filters, cannot empty the
+   *  list unnoticed ("Projected $20+" hid every extension session). */
+  active?: boolean;
 }) {
   const { t } = useTranslation();
   return (
@@ -46,7 +51,14 @@ export function SortDropdown<T>({
         onClick: onSort,
       }}
     >
-      <div className="cursor-pointer flex items-center justify-end gap-2">
+      <div
+        data-active={active ? 'true' : undefined}
+        className={
+          active
+            ? 'cursor-pointer flex items-center justify-end gap-2 rounded-full px-2.5 -my-0.5 py-0.5 bg-active-blue text-main font-medium border border-active-blue-border'
+            : 'cursor-pointer flex items-center justify-end gap-2'
+        }
+      >
         <div>{current}</div>
         <DownOutlined />
       </div>

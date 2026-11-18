@@ -26,7 +26,6 @@ function EventSearch(props) {
         </div>
         <div className="flex items-center mt-2">
           <Input
-            autoFocus
             type="text"
             placeholder="Filter by Event Type, URL or Keyword"
             className="inset-0 w-full"

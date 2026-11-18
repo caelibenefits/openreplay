@@ -15,7 +15,6 @@ function EventSearch(props) {
       <div className="flex flex-1 flex-col">
         <div className="flex items-center">
           <Input
-            autoFocus
             type="text"
             placeholder={`Filter ${eventsText}`}
             className="w-full rounded-lg"

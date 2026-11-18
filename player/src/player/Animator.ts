@@ -161,7 +161,17 @@ export default class Animator {
     this.animationFrameRequestId = requestAnimationFrame(frameHandler);
   }
 
+  // Caeli: a pending click-hold resume (pauseFor) is cancelled by any explicit
+  // play or pause, so a pause pressed during the hold is not undone 750ms later.
+  private cancelHoldResume = () => {
+    if (this.resumeTimeout) {
+      clearTimeout(this.resumeTimeout);
+      this.resumeTimeout = undefined;
+    }
+  };
+
   play = () => {
+    this.cancelHoldResume();
     const { freeze, ready } = this.store.get();
     if (freeze) return this.pause();
     if (ready) {
@@ -176,6 +186,7 @@ export default class Animator {
   };
 
   pause = () => {
+    this.cancelHoldResume();
     cancelAnimationFrame(this.animationFrameRequestId);
     this.store.update({ playing: false });
   };
@@ -222,7 +233,9 @@ export default class Animator {
 
   togglePlay = () => {
     const { playing, completed } = this.store.get();
-    if (playing) {
+    // Caeli: during a click-hold the replay is still "playing" to the viewer
+    // (it resumes on its own), so a toggle then means pause, not play.
+    if (playing || this.resumeTimeout) {
       this.pause();
     } else if (completed) {
       this.setTime(0);

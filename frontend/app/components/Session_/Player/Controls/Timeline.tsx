@@ -21,10 +21,10 @@ import SkipIntervalsList from './SkipIntervalsList';
 import CustomDragLayer, { OnDragCallback } from './components/CustomDragLayer';
 import TooltipContainer from './components/TooltipContainer';
 import stl from './timeline.module.css';
+import useResumeAfterDrag from './useResumeAfterDrag';
 
 function Timeline({ isMobile }: { isMobile: boolean }) {
   const { player, store } = useContext(PlayerContext);
-  const [wasPlaying, setWasPlaying] = useState(false);
   const [maxWidth, setMaxWidth] = useState(0);
   const { settingsStore, uiPlayerStore, sessionStore } = useStore();
   const startedAt = sessionStore.current.startedAt ?? 0;
@@ -55,11 +55,7 @@ function Timeline({ isMobile }: { isMobile: boolean }) {
     [],
   );
 
-  const onDragEnd = () => {
-    if (wasPlaying) {
-      player.togglePlay();
-    }
-  };
+  const { onDragMove, onDragEnd } = useResumeAfterDrag(player);
 
   const onDrag: OnDragCallback = (offset) => {
     // @ts-ignore react mismatch
@@ -74,10 +70,7 @@ function Timeline({ isMobile }: { isMobile: boolean }) {
       },
       sessionId,
     );
-    if (playing) {
-      setWasPlaying(true);
-      player.pause();
-    }
+    onDragMove(playing);
   };
 
   const showTimeTooltip = (e: React.MouseEvent<HTMLDivElement>) => {

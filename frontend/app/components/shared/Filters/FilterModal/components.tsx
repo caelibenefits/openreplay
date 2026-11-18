@@ -44,7 +44,7 @@ export const FilterItem = React.memo(
               disabled ? 'text-disabled-text' : 'text-gray-600',
             )}
           >
-            {filter.subCategory || filter.category}
+            {filter.subCategory || (filter as any).categoryLabel || filter.category}
           </Typography.Text>
           <ChevronRight size={14} className="ml-1 text-gray-400" />
         </div>

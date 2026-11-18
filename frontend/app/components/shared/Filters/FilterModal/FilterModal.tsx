@@ -11,6 +11,7 @@ import { FilterItem, CategoryList } from './components';
 import {
   groupFiltersByCategory,
   getFilteredEntries,
+  listFiltersForCategory,
   useDebounce,
 } from './utils';
 
@@ -47,19 +48,11 @@ function FilterModal({
     [debouncedQuery, groupedFilters, type],
   );
   const displayedFilters = useMemo(() => {
-    let filters = [];
-    if (category.startsWith('All')) {
-      filters = matchingCategories
-        .filter((cat) => !cat.startsWith('All'))
-        .flatMap((cat) =>
-          (matchingFilters[cat] || []).map((filter) => ({
-            ...filter,
-            category: cat,
-          })),
-        );
-    } else {
-      filters = matchingFilters[category] || [];
-    }
+    const filters = listFiltersForCategory(
+      category,
+      matchingCategories,
+      matchingFilters,
+    );
     if (eventModal) {
       return filters;
     } else {

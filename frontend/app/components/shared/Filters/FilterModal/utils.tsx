@@ -94,6 +94,30 @@ export const getFilteredEntries = (
   };
 };
 
+/**
+ * The filters the modal lists for the selected category; "All…" lists every
+ * matching category's filters, each tagged with its group label.
+ *
+ * Caeli: the label goes in `categoryLabel`, never over `category`. Overwriting
+ * it made a searched metadata filter "Metadata", which FilterValue treats as
+ * the legacy metadata shape (no id), so its value list never loaded ("No
+ * options available" for surface when found by search, not by category).
+ */
+export const listFiltersForCategory = (
+  category: string,
+  matchingCategories: string[],
+  matchingFilters: Record<string, Filter[]>,
+): Filter[] => {
+  if (!category.startsWith('All')) return matchingFilters[category] || [];
+  return matchingCategories
+    .filter((cat) => !cat.startsWith('All'))
+    .flatMap((cat) =>
+      (matchingFilters[cat] || []).map(
+        (filter) => ({ ...filter, categoryLabel: cat }) as Filter,
+      ),
+    );
+};
+
 export const useDebounce = (value: any, delay = 300) => {
   const [debounced, setDebounced] = useState(value);
   useEffect(() => {
